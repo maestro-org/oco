@@ -23,14 +23,24 @@ hash -r
 oco --help
 ```
 
-## 3. Configure organization inventory
-Edit `inventory/instances.yaml`:
+## 3. Initialize and configure organization inventory
+Create a local inventory from the tracked template:
+```bash
+oco inventory init
+```
+
+Then edit `inventory/instances.local.yaml`:
 - `organization.org_id`
 - `organization.org_slug`
 - `organization.display_name`
 - gateway `instances[*].host.gateway_port`
 - agent/account bindings under `instances[*].agents[*].bindings`
 - policy allowlists (`defaults.policy`, instance `policy`)
+
+Notes:
+- `inventory/instances.local.yaml` is ignored by git.
+- `oco` auto-selects `inventory/instances.local.yaml` when present.
+- Override path with `--inventory <path>` or `OCO_INVENTORY_PATH`.
 
 ## 4. Configure secrets
 ```bash
@@ -87,6 +97,7 @@ oco compose restart --instance core-human
 ## 8. Smoke test checklist
 - `oco health --instance <instance-id>` returns `running`
 - `oco agent list --instance <instance-id>` shows expected agent(s)
+- `oco pairing list --instance <instance-id> --channel telegram --account <account> --json` shows expected pairing requests
 - Send a real message through the configured channel account
 - Verify response is from the intended agent/account binding
 

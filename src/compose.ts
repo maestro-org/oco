@@ -97,7 +97,7 @@ export function runComposeAction(context: InstanceContext, action: string): stri
   }
 
   const normalized = action.trim().toLowerCase();
-  if (!['up', 'down', 'restart', 'ps', 'pull'].includes(normalized)) {
+  if (!['up', 'down', 'restart', 'ps', 'pull', 'logs'].includes(normalized)) {
     throw new ValidationError(`unsupported compose action: ${action}`);
   }
 

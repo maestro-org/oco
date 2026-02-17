@@ -4,9 +4,74 @@ import { ValidationError } from './errors';
 import { asRecord, isRecord, loadYaml, saveYaml } from './utils';
 
 export const DEFAULT_INVENTORY = 'inventory/instances.yaml';
+export const DEFAULT_LOCAL_INVENTORY = 'inventory/instances.local.yaml';
+export const DEFAULT_TEMPLATE_INVENTORY = 'inventory/instances.example.yaml';
 
 export function inventoryPath(path?: string): string {
-  return path ? resolve(path) : resolve(DEFAULT_INVENTORY);
+  if (path && path.trim()) {
+    return resolve(path);
+  }
+
+  const envPath = process.env.OCO_INVENTORY_PATH?.trim();
+  if (envPath) {
+    return resolve(envPath);
+  }
+
+  const localPath = resolve(DEFAULT_LOCAL_INVENTORY);
+  if (existsSync(localPath)) {
+    return localPath;
+  }
+
+  return resolve(DEFAULT_INVENTORY);
+}
+
+export function inventoryTemplatePath(path?: string): string {
+  if (path && path.trim()) {
+    return resolve(path);
+  }
+
+  const envPath = process.env.OCO_INVENTORY_TEMPLATE?.trim();
+  if (envPath) {
+    return resolve(envPath);
+  }
+
+  const templatePath = resolve(DEFAULT_TEMPLATE_INVENTORY);
+  if (existsSync(templatePath)) {
+    return templatePath;
+  }
+
+  return resolve(DEFAULT_INVENTORY);
+}
+
+export function initializeInventory(
+  path?: string,
+  template?: string,
+  force = false,
+): { path: string; template: string; status: 'created' | 'skipped' } {
+  const targetPath = path && path.trim() ? resolve(path) : resolve(DEFAULT_LOCAL_INVENTORY);
+  const templatePath = inventoryTemplatePath(template);
+
+  if (!existsSync(templatePath)) {
+    throw new ValidationError(`inventory template not found: ${templatePath}`);
+  }
+
+  if (existsSync(targetPath) && !force) {
+    return {
+      path: targetPath,
+      template: templatePath,
+      status: 'skipped',
+    };
+  }
+
+  const templateData = loadInventoryFile(templatePath);
+  validateInventory(templateData, templatePath);
+  saveInventoryFile(targetPath, templateData);
+
+  return {
+    path: targetPath,
+    template: templatePath,
+    status: 'created',
+  };
 }
 
 export function loadInventoryFile(path: string): Record<string, unknown> {

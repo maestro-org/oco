@@ -6,6 +6,7 @@ import { OcoError } from './errors';
 import {
   findInstance,
   getInstances,
+  initializeInventory,
   inventoryPath,
   loadInventoryFile,
   saveInventoryFile,
@@ -16,6 +17,8 @@ import {
   generateComposeForInstance,
   healthInstance,
   preflightInstance,
+  pairingApprove,
+  pairingList,
   renderInstance,
   revisionsForInstance,
   rollbackInstance,
@@ -31,13 +34,28 @@ function printJson(payload: unknown): void {
 function run(): void {
   const program = new Command();
 
-  program.name('oco').description('OpenClaw orchestrator CLI').option('--inventory <path>', 'Path to inventory YAML', 'inventory/instances.yaml');
+  program
+    .name('oco')
+    .description('OpenClaw orchestrator CLI')
+    .option('--inventory <path>', 'Path to inventory YAML');
+
+  const inventory = program.command('inventory').description('Inventory configuration helpers');
+
+  inventory
+    .command('init')
+    .description('Initialize a local inventory from the tracked template')
+    .option('--path <path>', 'Target inventory path', 'inventory/instances.local.yaml')
+    .option('--template <path>', 'Template inventory path')
+    .option('--force', 'Overwrite target inventory if it exists', false)
+    .action((options: { path: string; template?: string; force: boolean }) => {
+      printJson(initializeInventory(options.path, options.template, options.force));
+    });
 
   program
     .command('validate')
     .description('Validate inventory and policies')
     .action(() => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       const { invPath, inventory } = validateOnly(invFile);
       printJson({
         inventory: invPath,
@@ -52,7 +70,7 @@ function run(): void {
     .requiredOption('--instance <id>', 'Instance ID')
     .option('--dry-run', 'Do not write files', false)
     .action((options: { instance: string; dryRun: boolean }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(renderInstance(invFile, options.instance, options.dryRun));
     });
 
@@ -61,7 +79,7 @@ function run(): void {
     .description('Run preflight checks for one instance')
     .requiredOption('--instance <id>', 'Instance ID')
     .action((options: { instance: string }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(preflightInstance(invFile, options.instance));
     });
 
@@ -70,7 +88,7 @@ function run(): void {
     .description('Check runtime health for one instance')
     .requiredOption('--instance <id>', 'Instance ID')
     .action((options: { instance: string }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(healthInstance(invFile, options.instance));
     });
 
@@ -80,19 +98,43 @@ function run(): void {
     .command('generate')
     .requiredOption('--instance <id>', 'Instance ID')
     .action((options: { instance: string }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(generateComposeForInstance(invFile, options.instance));
     });
 
-  for (const action of ['up', 'down', 'restart', 'ps', 'pull']) {
+  for (const action of ['up', 'down', 'restart', 'ps', 'pull', 'logs']) {
     compose
       .command(action)
       .requiredOption('--instance <id>', 'Instance ID')
       .action((options: { instance: string }) => {
-        const { inventory: invFile } = program.opts<{ inventory: string }>();
+        const { inventory: invFile } = program.opts<{ inventory?: string }>();
         printJson(runCompose(invFile, options.instance, action));
       });
   }
+
+  const pairing = program.command('pairing').description('Pairing workflow helpers');
+
+  pairing
+    .command('list')
+    .requiredOption('--instance <id>', 'Instance ID')
+    .requiredOption('--account <id>', 'Channel account id')
+    .option('--channel <name>', 'Channel name', 'telegram')
+    .option('--json', 'Pass --json to OpenClaw pairing list', false)
+    .action((options: { instance: string; account: string; channel: string; json: boolean }) => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      printJson(pairingList(invFile, options.instance, options.channel, options.account, options.json));
+    });
+
+  pairing
+    .command('approve')
+    .requiredOption('--instance <id>', 'Instance ID')
+    .requiredOption('--account <id>', 'Channel account id')
+    .requiredOption('--code <code>', 'Pairing code')
+    .option('--channel <name>', 'Channel name', 'telegram')
+    .action((options: { instance: string; account: string; code: string; channel: string }) => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      printJson(pairingApprove(invFile, options.instance, options.channel, options.code, options.account));
+    });
 
   const agent = program.command('agent').description('Agent lifecycle commands');
 
@@ -115,7 +157,7 @@ function run(): void {
         skill: string[];
         model?: string;
       }) => {
-        const { inventory: invFile } = program.opts<{ inventory: string }>();
+        const { inventory: invFile } = program.opts<{ inventory?: string }>();
         const invPath = inventoryPath(invFile);
         const inventory = loadInventoryFile(invPath);
         validateInventory(inventory, invPath);
@@ -145,7 +187,7 @@ function run(): void {
     .requiredOption('--agent-id <id>', 'Agent ID')
     .option('--keep-accounts', 'Do not prune unused accounts', false)
     .action((options: { instance: string; agentId: string; keepAccounts: boolean }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       const invPath = inventoryPath(invFile);
       const inventory = loadInventoryFile(invPath);
       validateInventory(inventory, invPath);
@@ -164,7 +206,7 @@ function run(): void {
     .command('list')
     .requiredOption('--instance <id>', 'Instance ID')
     .action((options: { instance: string }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       const invPath = inventoryPath(invFile);
       const inventory = loadInventoryFile(invPath);
       validateInventory(inventory, invPath);
@@ -188,7 +230,7 @@ function run(): void {
     .command('validate')
     .description('Validate policies')
     .action(() => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       const invPath = inventoryPath(invFile);
       const inventory = loadInventoryFile(invPath);
       validateInventory(inventory, invPath);
@@ -208,7 +250,7 @@ function run(): void {
     .requiredOption('--instance <id>', 'Instance ID')
     .option('--agent-id <id>', 'Agent ID')
     .action((options: { instance: string; agentId?: string }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       const invPath = inventoryPath(invFile);
       const inventory = loadInventoryFile(invPath);
       validateInventory(inventory, invPath);
@@ -235,7 +277,7 @@ function run(): void {
     .requiredOption('--instance <id>', 'Instance ID')
     .option('--image-tag <tag>', 'Image tag')
     .action((options: { instance: string; imageTag?: string }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(updateInstance(invFile, options.instance, options.imageTag));
     });
 
@@ -244,7 +286,7 @@ function run(): void {
     .requiredOption('--instance <id>', 'Instance ID')
     .requiredOption('--revision <id>', 'Revision ID')
     .action((options: { instance: string; revision: string }) => {
-      const { inventory: invFile } = program.opts<{ inventory: string }>();
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(rollbackInstance(invFile, options.instance, options.revision));
     });
 

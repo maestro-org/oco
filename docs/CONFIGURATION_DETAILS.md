@@ -3,9 +3,17 @@
 This document explains how `oco` configuration is structured, merged, and applied.
 
 ## 1. Source of Truth
-- `inventory/instances.yaml`: main control-plane inventory.
+- `inventory/instances.example.yaml`: tracked reference template.
+- `inventory/instances.local.yaml`: local inventory (recommended, gitignored).
+- `inventory/instances.yaml`: fallback inventory path.
 - `templates/openclaw/*.json5`: reusable baseline layers.
 - `instances/<id>/config/instance.overrides.json5`: instance-specific overrides.
+
+Inventory path resolution order:
+1. `--inventory <path>`
+2. `OCO_INVENTORY_PATH`
+3. `inventory/instances.local.yaml` (if present)
+4. `inventory/instances.yaml`
 
 Generated runtime files (do not commit):
 - `.generated/<instance>/openclaw.resolved.json`
@@ -126,6 +134,8 @@ rg -n "sk-proj-|botToken\":\"|BEGIN PRIVATE KEY|OPENAI_API_KEY=" . --glob '!node
 
 ## 10. Validation and Deployment Flow
 ```bash
+oco inventory init
+
 set -a
 source .env
 set +a

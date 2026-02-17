@@ -1,7 +1,7 @@
 # E2E Example: Org Setup + Telegram Agents
 
 This guide shows a full example to:
-1. Configure an organization in `inventory/instances.yaml`
+1. Configure an organization in a local inventory
 2. Configure Telegram bot accounts and per-agent routing
 3. Approve Telegram pairings and run a smoke test
 
@@ -21,8 +21,13 @@ If `oco` is not in PATH, use the local binary for this repo:
 ./scripts/oco.sh --help
 ```
 
-## 2. Configure Org + Instance + Agent Routing
-Edit `inventory/instances.yaml`.
+## 2. Initialize and Configure Org + Instance + Agent Routing
+Create a local inventory from the tracked template:
+```bash
+oco inventory init
+```
+
+Then edit `inventory/instances.local.yaml`.
 
 Use this as a working example:
 
@@ -186,9 +191,9 @@ oco agent list --instance core-human
 oco compose ps --instance core-human
 ```
 
-Optional live logs:
+Optional logs:
 ```bash
-docker compose -f .generated/core-human/docker-compose.yaml logs -f
+oco compose logs --instance core-human
 ```
 
 ## 7. Connect Telegram Users to Each Agent (Pairing)
@@ -198,21 +203,15 @@ With `dmPolicy: pairing`, Telegram DMs require approval.
 2. List pending requests for each account:
 
 ```bash
-docker compose -f .generated/core-human/docker-compose.yaml \
-  exec -T gateway node /app/openclaw.mjs pairing list telegram --account vbarsegyan --json
-
-docker compose -f .generated/core-human/docker-compose.yaml \
-  exec -T gateway node /app/openclaw.mjs pairing list telegram --account drichardson --json
+oco pairing list --instance core-human --channel telegram --account vbarsegyan --json
+oco pairing list --instance core-human --channel telegram --account drichardson --json
 ```
 
 3. Approve each pairing code:
 
 ```bash
-docker compose -f .generated/core-human/docker-compose.yaml \
-  exec -T gateway node /app/openclaw.mjs pairing approve telegram <PAIRING_CODE> --account vbarsegyan
-
-docker compose -f .generated/core-human/docker-compose.yaml \
-  exec -T gateway node /app/openclaw.mjs pairing approve telegram <PAIRING_CODE> --account drichardson
+oco pairing approve --instance core-human --channel telegram --account vbarsegyan --code <PAIRING_CODE>
+oco pairing approve --instance core-human --channel telegram --account drichardson --code <PAIRING_CODE>
 ```
 
 ## 8. Smoke Test Routing

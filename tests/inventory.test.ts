@@ -4,7 +4,12 @@ import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
 import YAML from 'yaml';
 import { ValidationError } from '../src/errors';
-import { loadInventoryFile, validateInventory } from '../src/inventory';
+import {
+  initializeInventory,
+  inventoryPath,
+  loadInventoryFile,
+  validateInventory,
+} from '../src/inventory';
 
 function setupValidInventoryRoot(): { root: string; invPath: string } {
   const root = mkdtempSync(join(tmpdir(), 'oco-inv-'));
@@ -111,6 +116,46 @@ describe('inventory', () => {
       ];
 
       expect(() => validateInventory(inventory, invPath)).toThrow('duplicate channel/account binding');
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('inventoryPath prefers instances.local.yaml when present', () => {
+    const root = mkdtempSync(join(tmpdir(), 'oco-inv-local-'));
+    const previousCwd = process.cwd();
+    const previousEnv = process.env.OCO_INVENTORY_PATH;
+
+    try {
+      delete process.env.OCO_INVENTORY_PATH;
+      mkdirSync(join(root, 'inventory'), { recursive: true });
+      writeFileSync(join(root, 'inventory', 'instances.local.yaml'), 'version: 1\ninstances: []\n');
+      writeFileSync(join(root, 'inventory', 'instances.yaml'), 'version: 1\ninstances: []\n');
+
+      process.chdir(root);
+      expect(inventoryPath()).toBe(join(root, 'inventory', 'instances.local.yaml'));
+    } finally {
+      if (previousEnv === undefined) {
+        delete process.env.OCO_INVENTORY_PATH;
+      } else {
+        process.env.OCO_INVENTORY_PATH = previousEnv;
+      }
+      process.chdir(previousCwd);
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('initializeInventory creates a local copy from template', () => {
+    const { root, invPath } = setupValidInventoryRoot();
+    const localPath = join(root, 'inventory', 'instances.local.yaml');
+
+    try {
+      const result = initializeInventory(localPath, invPath, false);
+      expect(result.status).toBe('created');
+
+      const source = loadInventoryFile(invPath);
+      const local = loadInventoryFile(localPath);
+      expect(local).toEqual(source);
     } finally {
       rmSync(root, { recursive: true, force: true });
     }

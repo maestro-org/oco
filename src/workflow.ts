@@ -105,6 +105,51 @@ export function runCompose(
   };
 }
 
+export function pairingList(
+  invFile: string | undefined,
+  instanceId: string,
+  channel: string,
+  accountId: string,
+  jsonOutput = false,
+): Record<string, unknown> {
+  const args = ['pairing', 'list', channel, '--account', accountId];
+  if (jsonOutput) {
+    args.push('--json');
+  }
+
+  const raw = runGatewayCommand(invFile, instanceId, args);
+  return {
+    instance: instanceId,
+    channel,
+    account: accountId,
+    output: jsonOutput ? parseOutputJson(raw) : raw,
+  };
+}
+
+export function pairingApprove(
+  invFile: string | undefined,
+  instanceId: string,
+  channel: string,
+  code: string,
+  accountId: string,
+): Record<string, unknown> {
+  const raw = runGatewayCommand(invFile, instanceId, [
+    'pairing',
+    'approve',
+    channel,
+    code,
+    '--account',
+    accountId,
+  ]);
+
+  return {
+    instance: instanceId,
+    channel,
+    account: accountId,
+    output: raw,
+  };
+}
+
 export function preflightInstance(
   invFile: string | undefined,
   instanceId: string,
@@ -268,6 +313,59 @@ export function rollbackInstance(
 
 export function revisionsForInstance(instanceId: string): string[] {
   return listRevisions(instanceId);
+}
+
+function runGatewayCommand(
+  invFile: string | undefined,
+  instanceId: string,
+  commandArgs: string[],
+): string {
+  const { invPath, inventory } = loadAndValidate(invFile);
+  const instance = findInstance(inventory, instanceId);
+  const context = buildInstanceContext(instance, invPath);
+  const composePath = composeFilePath(context);
+
+  if (!existsSync(composePath)) {
+    throw new ValidationError(
+      `compose file not generated: ${composePath}. Run 'oco compose up --instance ${instanceId}' first.`,
+    );
+  }
+
+  const service = resolveComposeService(instance);
+  const args = [
+    'docker',
+    'compose',
+    '-f',
+    composePath,
+    'exec',
+    '-T',
+    service,
+    'node',
+    '/app/openclaw.mjs',
+    ...commandArgs,
+  ];
+
+  const result = runCommand(args);
+  return (result.stdout || result.stderr).trim();
+}
+
+function resolveComposeService(instance: Record<string, unknown>): string {
+  const openclaw = isRecord(instance.openclaw) ? instance.openclaw : {};
+  const docker = isRecord(openclaw.docker) ? openclaw.docker : {};
+
+  if (typeof docker.service_name === 'string' && docker.service_name.trim()) {
+    return docker.service_name.trim();
+  }
+
+  return 'gateway';
+}
+
+function parseOutputJson(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
