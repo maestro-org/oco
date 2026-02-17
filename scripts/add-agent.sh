@@ -15,19 +15,28 @@ AGENT_ID="$2"
 ROLE="$3"
 ACCOUNT="$4"
 MODEL="${5:-}"
-INVENTORY_PATH="${INVENTORY_PATH:-inventory/instances.yaml}"
+INVENTORY_PATH="${INVENTORY_PATH:-}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OCO="$ROOT_DIR/scripts/oco.sh"
 
 channel="${ACCOUNT%%:*}"
 
-args=(--inventory "$INVENTORY_PATH" agent add --instance "$INSTANCE_ID" --agent-id "$AGENT_ID" --role "$ROLE" --account "$ACCOUNT" --integration "$channel")
+INV_ARGS=()
+if [[ -n "$INVENTORY_PATH" ]]; then
+  if [[ ! -f "$INVENTORY_PATH" && ! -f "$ROOT_DIR/$INVENTORY_PATH" ]]; then
+    echo "error: inventory file not found: $INVENTORY_PATH" >&2
+    exit 1
+  fi
+  INV_ARGS=(--inventory "$INVENTORY_PATH")
+fi
+
+args=("${INV_ARGS[@]}" agent add --instance "$INSTANCE_ID" --agent-id "$AGENT_ID" --role "$ROLE" --account "$ACCOUNT" --integration "$channel")
 
 if [[ -n "$MODEL" ]]; then
   args+=(--model "$MODEL")
 fi
 
 "$OCO" "${args[@]}"
-"$OCO" --inventory "$INVENTORY_PATH" compose restart --instance "$INSTANCE_ID"
-"$OCO" --inventory "$INVENTORY_PATH" agent list --instance "$INSTANCE_ID"
+"$OCO" "${INV_ARGS[@]}" compose restart --instance "$INSTANCE_ID"
+"$OCO" "${INV_ARGS[@]}" agent list --instance "$INSTANCE_ID"

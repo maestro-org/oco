@@ -13,7 +13,7 @@ A tool for managing OpenClaw agent organizations
 - Shared governance: org-wide defaults with per-instance and per-agent overrides.
 
 ## Features
-- Inventory-driven instance/agent orchestration (`inventory/instances.yaml`).
+- Inventory-driven instance/agent orchestration with template + local workflows.
 - Validation for collisions and misconfiguration (ports, paths, bindings).
 - Layered OpenClaw config rendering from templates + instance overrides.
 - Docker Compose generation and lifecycle commands per instance.
@@ -40,115 +40,74 @@ If `oco` is not found:
 echo 'export PATH="$HOME/.bun/bin:$PATH"' >> ~/.zshrc
 ```
 
-## Deployment Example
+## Quick Start
 
-### 1. Configure org inventory
-Update `inventory/instances.yaml`.
-
-Example:
-```yaml
-version: 1
-organization:
-  org_id: acme-org
-  org_slug: acme-org
-  display_name: Acme Organization
-
-defaults:
-  port_stride: 20
-  policy:
-    integrations:
-      allow: [telegram]
-      deny: []
-    skills:
-      allow: []
-      deny: []
-      allow_sources: [bundled, managed, workspace]
-      deny_sources: []
-    models:
-      allow_providers: [openai, anthropic, openrouter, litellm, ollama]
-      deny_providers: []
-      allow_models: []
-      deny_models: []
-
-instances:
-  - id: core-human
-    enabled: true
-    profile: human
-    host:
-      bind: 127.0.0.1
-      gateway_port: 19789
-    paths:
-      config_dir: ../instances/core-human/config
-      state_dir: ../instances/core-human/state
-      workspace_root: ../instances/core-human/workspaces
-      generated_dir: ../.generated/core-human
-    openclaw:
-      config_layers:
-        - ../templates/openclaw/org.base.json5
-        - ../templates/openclaw/profiles/human.base.json5
-        - ../instances/core-human/config/instance.overrides.json5
-      docker:
-        image: ghcr.io/openclaw/openclaw:latest
-        container_name: openclaw-core-human
-        restart: unless-stopped
-    channels:
-      telegram:
-        accounts:
-          vbarsegyan: {}
-          drichardson: {}
-    agents:
-      - id: vbarsegyan
-        role: human
-        workspace: vbarsegyan
-        agent_dir: agents/vbarsegyan
-        model: openai/gpt-5-nano
-        bindings:
-          - match:
-              channel: telegram
-              accountId: Varderes
-      - id: drichardson
-        role: usecase
-        workspace: drichardson
-        agent_dir: agents/drichardson
-        model: openai/gpt-5-nano
-        bindings:
-          - match:
-              channel: telegram
-              accountId: davis_rich
+### 1. Create a local inventory (recommended)
+Keep the tracked template for examples, and manage your real org config in an ignored file:
+```bash
+oco inventory init
 ```
 
-### 2. Configure secrets
+This creates `inventory/instances.local.yaml` from the template.
+
+Defaults:
+- `oco` uses `inventory/instances.local.yaml` when it exists.
+- Otherwise it falls back to `inventory/instances.yaml`.
+- You can always override with `--inventory <path>` or `OCO_INVENTORY_PATH`.
+
+### 2. Configure your organization inventory
+Edit `inventory/instances.local.yaml` (or your chosen inventory path) for:
+- `organization.org_id`, `organization.org_slug`, `organization.display_name`
+- `instances[*].host.gateway_port`
+- channel account mappings and `agents[*].bindings`
+- policy allowlists under `defaults.policy` and `instances[*].policy`
+
+Reference template:
+- `inventory/instances.example.yaml`
+
+### 3. Configure secrets
 ```bash
 cp .env.example .env
 ```
 
-Set secrets in `.env` (example):
+Set required values in `.env`:
 ```dotenv
 OPENCLAW_GATEWAY_TOKEN=<strong-random-token>
-OPENAI_API_KEY=<openai-api-key>
+OPENAI_API_KEY=<provider-key>
 TELEGRAM_BOT_TOKEN_VBARSEGYAN=<telegram-bot-token>
 TELEGRAM_BOT_TOKEN_DRICHARDSON=<telegram-bot-token>
 ```
 
-Reference those env vars in `instances/core-human/config/instance.overrides.json5`.
-
-### 3. Deploy instance with direct `oco` commands
+Load env:
 ```bash
 set -a
 source .env
 set +a
+```
 
+### 4. Deploy
+```bash
+./scripts/deploy-instance.sh core-human
+```
+
+Manual equivalent:
+```bash
 oco validate
 oco policy validate
-oco preflight --instance core-human
-
 oco render --instance core-human
 oco compose generate --instance core-human
+oco preflight --instance core-human
 oco compose up --instance core-human
 oco health --instance core-human
 ```
 
-### 4. Operate agents
+### 5. Pair Telegram users
+```bash
+oco pairing list --instance core-human --channel telegram --account drichardson --json
+oco pairing approve --instance core-human --channel telegram --account drichardson --code <PAIRING_CODE>
+```
+
+### 6. Manage agents
 ```bash
 oco agent list --instance core-human
 
