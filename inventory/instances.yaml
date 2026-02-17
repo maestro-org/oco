@@ -66,7 +66,7 @@ instances:
       config_layers:
         - ../templates/openclaw/org.base.json5
         - ../templates/openclaw/profiles/human.base.json5
-        - ../instances/core-human/config/instance.overrides.json5
+        - ../instances/core-human/config/instance.overrides.example.json5
       docker:
         image: ghcr.io/openclaw/openclaw:latest
         container_name: openclaw-core-human

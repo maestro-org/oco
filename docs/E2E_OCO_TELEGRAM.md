@@ -121,6 +121,13 @@ instances:
 ```
 
 ## 3. Configure Telegram Tokens in Config Layer
+Create a local overrides file from the tracked example, then edit it:
+
+```bash
+cp instances/core-human/config/instance.overrides.example.json5 \
+  instances/core-human/config/instance.overrides.json5
+```
+
 Edit `instances/core-human/config/instance.overrides.json5`.
 
 ```json5
