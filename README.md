@@ -117,7 +117,14 @@ oco agent add \
   --role usecase \
   --account telegram:support \
   --integration telegram \
-  --model openai/gpt-5-nano
+  --model openai/gpt-4.1-mini \
+  --soul-template operations \
+  --tools-template operations
+
+oco soul list
+oco soul apply --instance core-human --agent-id drichardson --template business-development --force
+oco tools list
+oco tools apply --instance core-human --agent-id drichardson --template business-development --force
 
 oco compose up --instance core-human
 ```
@@ -126,6 +133,8 @@ oco compose up --instance core-human
 - Deployment runbook: `docs/DEPLOYMENT_RUNBOOK.md`
 - End-to-end Telegram walkthrough: `docs/E2E_OCO_TELEGRAM.md`
 - Configuration reference: `docs/CONFIGURATION_DETAILS.md`
+- SOUL template workflow: `docs/SOUL_TEMPLATES.md`
+- TOOLS template workflow: `docs/TOOLS_TEMPLATES.md`
 - Product requirements: `docs/REQUIREMENTS.md`
 
 ## Open Source Safety
@@ -142,6 +151,7 @@ rg -n "sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|EC|OPENSSH|PGP|DSA)? 
 - [ ] Dashboard UI
 - [ ] Kubernetes deployments
 - [ ] SSO OAuth support
+- [ ] Model provider usage and analytics integration
 
 ## License
 MIT (`LICENSE`)

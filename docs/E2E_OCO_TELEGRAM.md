@@ -91,7 +91,7 @@ instances:
         role: human
         workspace: vbarsegyan
         agent_dir: agents/vbarsegyan
-        model: openai/gpt-5-nano
+        model: openai/gpt-4.1-mini
         integrations:
           - telegram
         skills:
@@ -107,7 +107,7 @@ instances:
         role: human
         workspace: drichardson
         agent_dir: agents/drichardson
-        model: openai/gpt-5-nano
+        model: openai/gpt-4.1-mini
         integrations:
           - telegram
         skills:
@@ -235,7 +235,7 @@ oco agent add \
   --role usecase \
   --account telegram:support \
   --integration telegram \
-  --model openai/gpt-5-nano
+  --model openai/gpt-4.1-mini
 ```
 
 Then add a token entry for `support` in `instances/core-human/config/instance.overrides.json5`, add `TELEGRAM_BOT_TOKEN_SUPPORT` to `.env`, and apply changes:

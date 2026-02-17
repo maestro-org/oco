@@ -94,6 +94,28 @@ oco agent add \
 oco compose restart --instance core-human
 ```
 
+Apply a SOUL template (existing agent):
+```bash
+oco soul list
+oco soul apply --instance core-human --agent-id procurement --template operations
+```
+
+Or apply during add:
+```bash
+oco agent add ... --soul-template operations
+```
+
+Apply a TOOLS template (existing agent):
+```bash
+oco tools list
+oco tools apply --instance core-human --agent-id procurement --template operations
+```
+
+Or apply during add:
+```bash
+oco agent add ... --tools-template operations
+```
+
 ## 8. Smoke test checklist
 - `oco health --instance <instance-id>` returns `running`
 - `oco agent list --instance <instance-id>` shows expected agent(s)

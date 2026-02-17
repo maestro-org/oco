@@ -26,6 +26,8 @@ import {
   updateInstance,
   validateOnly,
 } from './workflow';
+import { applySoulTemplate, listSoulTemplates } from './soul';
+import { applyToolsTemplate, listToolsTemplates } from './tools';
 
 function printJson(payload: unknown): void {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
@@ -50,6 +52,68 @@ function run(): void {
     .action((options: { path: string; template?: string; force: boolean }) => {
       printJson(initializeInventory(options.path, options.template, options.force));
     });
+
+  const soul = program.command('soul').description('SOUL.md template helpers');
+
+  soul
+    .command('list')
+    .description('List available SOUL templates')
+    .action(() => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      printJson(listSoulTemplates(invFile));
+    });
+
+  soul
+    .command('apply')
+    .description('Apply a SOUL template to an agent workspace')
+    .requiredOption('--instance <id>', 'Instance ID')
+    .requiredOption('--agent-id <id>', 'Agent ID')
+    .requiredOption('--template <name>', 'Template id from templates/souls')
+    .option('--force', 'Overwrite an existing SOUL.md', false)
+    .action(
+      (options: {
+        instance: string;
+        agentId: string;
+        template: string;
+        force: boolean;
+      }) => {
+        const { inventory: invFile } = program.opts<{ inventory?: string }>();
+        printJson(
+          applySoulTemplate(invFile, options.instance, options.agentId, options.template, options.force),
+        );
+      },
+    );
+
+  const tools = program.command('tools').description('TOOLS.md template helpers');
+
+  tools
+    .command('list')
+    .description('List available TOOLS templates')
+    .action(() => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      printJson(listToolsTemplates(invFile));
+    });
+
+  tools
+    .command('apply')
+    .description('Apply a TOOLS template to an agent workspace')
+    .requiredOption('--instance <id>', 'Instance ID')
+    .requiredOption('--agent-id <id>', 'Agent ID')
+    .requiredOption('--template <name>', 'Template id from templates/tools')
+    .option('--force', 'Overwrite an existing TOOLS.md', false)
+    .action(
+      (options: {
+        instance: string;
+        agentId: string;
+        template: string;
+        force: boolean;
+      }) => {
+        const { inventory: invFile } = program.opts<{ inventory?: string }>();
+        printJson(
+          applyToolsTemplate(invFile, options.instance, options.agentId, options.template, options.force),
+        );
+      },
+    );
 
   program
     .command('validate')
@@ -142,20 +206,24 @@ function run(): void {
     .command('add')
     .requiredOption('--instance <id>', 'Instance ID')
     .requiredOption('--agent-id <id>', 'Agent ID')
-    .option('--role <role>', 'human|usecase', 'usecase')
+    .option('--role <role>', 'Agent role (e.g. human|usecase|operations)', 'usecase')
     .requiredOption('--account <channel:accountId...>', 'Account mapping(s)')
     .option('--integration <name...>', 'Integrations', [])
     .option('--skill <name...>', 'Skills', [])
     .option('--model <provider/model>', 'Model')
+    .option('--soul-template <name>', 'Apply SOUL template after agent creation')
+    .option('--tools-template <name>', 'Apply TOOLS template after agent creation')
     .action(
       (options: {
         instance: string;
         agentId: string;
-        role: 'human' | 'usecase';
+        role: string;
         account: string[];
         integration: string[];
         skill: string[];
         model?: string;
+        soulTemplate?: string;
+        toolsTemplate?: string;
       }) => {
         const { inventory: invFile } = program.opts<{ inventory?: string }>();
         const invPath = inventoryPath(invFile);
@@ -176,8 +244,48 @@ function run(): void {
         saveInventoryFile(invPath, inventory);
         validateInventory(inventory, invPath);
         validatePolicies(inventory, getInstances(inventory));
+        let soul: Record<string, unknown> | undefined;
+        if (typeof options.soulTemplate === 'string' && options.soulTemplate.trim()) {
+          soul = applySoulTemplate(
+            invFile,
+            options.instance,
+            options.agentId,
+            options.soulTemplate.trim(),
+            false,
+          );
+        }
+        let toolsTemplateResult: Record<string, unknown> | undefined;
+        if (typeof options.toolsTemplate === 'string' && options.toolsTemplate.trim()) {
+          toolsTemplateResult = applyToolsTemplate(
+            invFile,
+            options.instance,
+            options.agentId,
+            options.toolsTemplate.trim(),
+            false,
+          );
+        }
 
-        printJson({ status: 'added', instance: options.instance, agent: options.agentId });
+        const payload: Record<string, unknown> = {
+          status: 'added',
+          instance: options.instance,
+          agent: options.agentId,
+        };
+        if (soul) {
+          payload.soul = {
+            template: soul.template,
+            path: soul.soul_path,
+            status: soul.status,
+          };
+        }
+        if (toolsTemplateResult) {
+          payload.tools = {
+            template: toolsTemplateResult.template,
+            path: toolsTemplateResult.tools_path,
+            status: toolsTemplateResult.status,
+          };
+        }
+
+        printJson(payload);
       },
     );
 
