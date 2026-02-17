@@ -60,7 +60,7 @@ Each `instances[].agents[]` entry supports:
 - `role`: operational role (`human`, `usecase`).
 - `workspace`: workspace name/path suffix.
 - `agent_dir`: state dir suffix.
-- `model`: model id, e.g. `openai/gpt-5-nano`.
+- `model`: model id, e.g. `openai/gpt-4.1-mini`.
 - `integrations`: expected integration allowlist for policy checks.
 - `skills`: optional skill names for policy checks.
 - `skill_sources`: allowed skill sources (`bundled`, `managed`, `workspace`).
@@ -80,6 +80,11 @@ bindings:
 ```
 
 Validation enforces no duplicate `channel:accountId` binding inside an instance.
+
+Recommended naming convention:
+- agent `id`: lowercase slug (`drichardson`, `saugustine`)
+- Telegram account `accountId`: lowercase snake_case (`drichardson`, `scott_augustine`)
+- Human display name: optional `name` field in Title Case (`Scott Augustine`)
 
 ## 6. Policies and Precedence
 Effective policy precedence:
@@ -101,6 +106,7 @@ Common variables:
 - `ANTHROPIC_API_KEY`
 - `OPENROUTER_API_KEY`
 - channel-specific vars such as `TELEGRAM_BOT_TOKEN_*`
+- CLI path overrides such as `OCO_INVENTORY_PATH`, `OCO_SOUL_TEMPLATES_DIR`, and `OCO_TOOLS_TEMPLATES_DIR`
 
 Use env references in JSON5 layers:
 ```json5
@@ -148,4 +154,32 @@ oco render --instance core-human
 oco compose generate --instance core-human
 oco compose up --instance core-human
 oco health --instance core-human
+```
+
+## 11. SOUL Template Workflow
+Use `templates/souls/*.md` for reusable agent personas:
+
+```bash
+oco soul list
+oco soul apply --instance core-human --agent-id <agent-id> --template operations
+```
+
+For new agents:
+
+```bash
+oco agent add ... --soul-template operations
+```
+
+## 12. TOOLS Template Workflow
+Use `templates/tools/*.md` for reusable `TOOLS.md` bootstrap content:
+
+```bash
+oco tools list
+oco tools apply --instance core-human --agent-id <agent-id> --template operations
+```
+
+For new agents:
+
+```bash
+oco agent add ... --tools-template operations
 ```

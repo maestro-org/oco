@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ "$#" -lt 4 ]]; then
   cat >&2 <<USAGE
-Usage: $0 <instance-id> <agent-id> <role:human|usecase> <channel:accountId> [model]
+Usage: $0 <instance-id> <agent-id> <role> <channel:accountId> [model]
 Example:
   $0 core-human procurement usecase telegram:procurement openai/gpt-4.1-mini
 USAGE

@@ -4,7 +4,7 @@ import { isRecord, uniqueStrings } from './utils';
 export function addAgent(
   instance: Record<string, unknown>,
   agentId: string,
-  role: 'human' | 'usecase',
+  role: string,
   accounts: string[],
   integrations: string[],
   skills: string[],

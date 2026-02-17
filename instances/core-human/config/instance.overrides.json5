@@ -10,7 +10,7 @@
         drichardson: {
           botToken: "${TELEGRAM_BOT_TOKEN_DRICHARDSON}",
         },
-        Scott_Augustine: {
+        scott_augustine: {
           botToken: "${TELEGRAM_BOT_TOKEN_SAUGUSTINE}",
         }
       },
