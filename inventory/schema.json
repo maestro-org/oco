@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.org/openclaw-orchestrator/inventory.schema.json",
-  "title": "OpenClaw Orchestrator Inventory",
+  "$id": "https://example.org/oco/inventory.schema.json",
+  "title": "oco Inventory",
   "type": "object",
   "required": ["version", "instances"],
   "properties": {
