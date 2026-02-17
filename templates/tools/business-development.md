@@ -34,11 +34,15 @@ curl -sS https://api.notion.com/v1/users/me \
 - Do not use `sessions_spawn` or `sessions_send` for Notion tasks.
 - Do not delegate to a "notion agent" or any sub-agent for Notion tasks.
 - Execute Notion API calls directly in the current session using the `exec` tool.
+- Do not use `web_fetch` or `browser` to read `notion.so` content pages.
 - Use single-line `exec` commands for `curl` (no multi-line headers).
 - Use double quotes for headers that include env vars, especially:
   - `-H "Authorization: Bearer $NOTION_API_KEY"`
   - Do not wrap that header in single quotes.
 - If you see `Either sessionKey or label is required`, stop using session tools and retry with direct `exec` calls.
+- If the user provides a Notion URL, extract the page id and fetch via Notion API:
+  - call `GET /v1/pages/{page_id}` first
+  - then call `GET /v1/blocks/{page_id}/children` for content
 - For page analysis, use Notion API endpoints directly:
   - `GET /v1/pages/{page_id}`
   - `GET /v1/blocks/{page_id}/children`

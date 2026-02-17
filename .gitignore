@@ -21,6 +21,7 @@ instances/*/workspaces/
 instances/*/config/openclaw.json5
 instances/*/config/openclaw.json5.bak*
 instances/*/config/*.resolved.json
+instances/*/config/instance.overrides.json5
 
 # Misc
 .DS_Store

@@ -7,7 +7,8 @@ This document explains how `oco` configuration is structured, merged, and applie
 - `inventory/instances.local.yaml`: local inventory (recommended, gitignored).
 - `inventory/instances.yaml`: fallback inventory path.
 - `templates/openclaw/*.json5`: reusable baseline layers.
-- `instances/<id>/config/instance.overrides.json5`: instance-specific overrides.
+- `instances/<id>/config/instance.overrides.example.json5`: tracked example overrides.
+- `instances/<id>/config/instance.overrides.json5`: local org-specific overrides (gitignored).
 
 Inventory path resolution order:
 1. `--inventory <path>`
