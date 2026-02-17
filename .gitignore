@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Build/generated artifacts
+.generated/
+.revisions/
+node_modules/
+dist/
+
+# Runtime OpenClaw instance artifacts (contain secrets/session data)
+instances/*/state/
+instances/*/workspaces/
+instances/*/config/openclaw.json5
+instances/*/config/openclaw.json5.bak*
+instances/*/config/*.resolved.json
+
+# Misc
+.DS_Store
+*.log
+
+# Local planning/shell
+notes.md
+.envrc
+.direnv/

@@ -1,0 +1,22 @@
+{
+  gateway: {
+    auth: {
+      // Inject via environment in production.
+      token: "${OPENCLAW_GATEWAY_TOKEN:-change-me}",
+    },
+    reload: {
+      mode: "hybrid",
+    },
+  },
+  session: {
+    dmScope: "per-account-channel-peer",
+  },
+  agents: {
+    defaults: {
+      sandbox: {
+        // Valid values: off | non-main | all
+        mode: "off",
+      },
+    },
+  },
+}

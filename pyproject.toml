@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openclaw-org-orchestrator"
+version = "0.1.0"
+description = "Phase 1 CLI orchestrator for multi-instance OpenClaw deployments"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "PyYAML>=6.0",
+]
+
+[project.scripts]
+openclaw-orch = "orchestrator.cli:main"
+
+[tool.setuptools]
+packages = ["orchestrator"]

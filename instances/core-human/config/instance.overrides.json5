@@ -1,0 +1,16 @@
+{
+  channels: {
+    telegram: {
+      dmPolicy: "pairing",
+      groupPolicy: "allowlist",
+      accounts: {
+        vbarsegyan: {
+          botToken: "${TELEGRAM_BOT_TOKEN_VBARSEGYAN}",
+        },
+        drichardson: {
+          botToken: "${TELEGRAM_BOT_TOKEN_DRICHARDSON}",
+        }
+      },
+    },
+  },
+}
