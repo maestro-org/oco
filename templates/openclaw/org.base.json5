@@ -17,6 +17,13 @@
         // Valid values: off | non-main | all
         mode: "off",
       },
+      contextPruning: {
+        // Keep full tool/reasoning chains intact for OpenAI Responses replay safety.
+        mode: "off",
+      },
     },
+  },
+  tools: {
+    deny: ["gateway"],
   },
 }

@@ -140,7 +140,7 @@ function resolveDockerUser(docker: Record<string, unknown>): string | undefined 
 }
 
 function injectProviderApiKeys(env: Record<string, string>): void {
-  const passthrough = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY'];
+  const passthrough = ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'OPENROUTER_API_KEY', 'BRAVE_API_KEY'];
 
   for (const key of passthrough) {
     const value = process.env[key];

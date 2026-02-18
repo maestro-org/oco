@@ -29,6 +29,14 @@ For each instance, `oco` resolves config in this order:
 
 Later layers override earlier ones.
 
+Safety default in the shared template:
+- `agents.defaults.contextPruning.mode` is set to `off` to keep OpenAI Responses reasoning/tool chains intact during replay.
+- If you re-enable pruning, validate multi-turn tool conversations first (especially on GPT-5 class models).
+
+One-time recovery for already-broken sessions:
+- If a session is already failing with `Item 'rs_...' ... required following item`, start a fresh session id for that conversation.
+- In self-hosted state, remove the stale `sessionId` mapping from `instances/<id>/state/agents/<agent>/sessions/sessions.json` so the next inbound message creates a new session.
+
 ## 3. Inventory Structure
 
 ## 3.1 Top-level
@@ -106,6 +114,7 @@ Common variables:
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `OPENROUTER_API_KEY`
+- `BRAVE_API_KEY` (for `web_search`)
 - channel-specific vars such as `TELEGRAM_BOT_TOKEN_*`
 - CLI path overrides such as `OCO_INVENTORY_PATH`, `OCO_SOUL_TEMPLATES_DIR`, and `OCO_TOOLS_TEMPLATES_DIR`
 

@@ -73,6 +73,7 @@ describe('compose', () => {
 
     process.env.OPENAI_API_KEY = 'env-openai-key';
     process.env.OPENROUTER_API_KEY = 'env-openrouter-key';
+    process.env.BRAVE_API_KEY = 'env-brave-key';
 
     try {
       const context: InstanceContext = {
@@ -108,9 +109,11 @@ describe('compose', () => {
 
       expect(env.OPENAI_API_KEY).toBe('env-openai-key');
       expect(env.OPENROUTER_API_KEY).toBe('env-openrouter-key');
+      expect(env.BRAVE_API_KEY).toBe('env-brave-key');
     } finally {
       delete process.env.OPENAI_API_KEY;
       delete process.env.OPENROUTER_API_KEY;
+      delete process.env.BRAVE_API_KEY;
       rmSync(root, { recursive: true, force: true });
     }
   });
