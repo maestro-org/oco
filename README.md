@@ -74,6 +74,7 @@ Set required values in `.env`:
 ```dotenv
 OPENCLAW_GATEWAY_TOKEN=<strong-random-token>
 OPENAI_API_KEY=<provider-key>
+BRAVE_API_KEY=<brave-search-api-key>
 TELEGRAM_BOT_TOKEN_VBARSEGYAN=<telegram-bot-token>
 TELEGRAM_BOT_TOKEN_DRICHARDSON=<telegram-bot-token>
 ```
@@ -137,6 +138,12 @@ oco compose up --instance core-human
 - TOOLS template workflow: `docs/TOOLS_TEMPLATES.md`
 - Product requirements: `docs/REQUIREMENTS.md`
 
+## Skills
+- Repo skills live under `skills/<skill-name>/`.
+- Each skill should include `SKILL.md`; optional UI metadata belongs in `agents/openai.yaml`.
+- Included skill: `skills/thoughtful-oco-facilitator/`
+- Invocation pattern: reference `$thoughtful-oco-facilitator` in the request.
+
 ## Open Source Safety
 - Keep real secrets only in local `.env` (ignored by default).
 - Do not commit runtime state or rendered configs from `instances/*/state` and `instances/*/config/openclaw.json5*`.
@@ -148,10 +155,13 @@ rg -n "sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|EC|OPENSSH|PGP|DSA)? 
 ```
 
 ## TODO
+- [ ] Ability to browse the web
 - [ ] Dashboard UI
 - [ ] Kubernetes deployments
 - [ ] SSO OAuth support
 - [ ] Model provider usage and analytics integration
+- [ ] Email integration
+- [ ] Add architecture diagram
 
 ## License
 MIT (`LICENSE`)

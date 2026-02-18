@@ -1,0 +1,4 @@
+interface:
+  display_name: "Thoughtful OCO Facilitator"
+  short_description: "Repo-safe OCO rollout and docs guardrails"
+  default_prompt: "Use $thoughtful-oco-facilitator to implement OCO changes with docs, rollout, and health checks."

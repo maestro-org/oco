@@ -1,4 +1,12 @@
 {
+  agents: {
+    defaults: {
+      // Keep replay order stable for reasoning/tool turns.
+      contextPruning: {
+        mode: "off",
+      },
+    },
+  },
   channels: {
     telegram: {
       dmPolicy: "pairing",
