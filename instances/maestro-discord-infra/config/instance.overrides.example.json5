@@ -1,0 +1,11 @@
+{
+  channels: {
+    discord: {
+      accounts: {
+        infra_triage: {
+          token: "${DISCORD_BOT_TOKEN_INFRA_TRIAGE}",
+        },
+      },
+    },
+  },
+}

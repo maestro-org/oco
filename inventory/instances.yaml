@@ -116,3 +116,188 @@ instances:
           - match:
               channel: telegram
               accountId: drichardson
+  - id: maestro-discord-knowledge
+    enabled: true
+    profile: usecase
+    host:
+      bind: 127.0.0.1
+      gateway_port: 19809
+    paths:
+      config_dir: ../instances/maestro-discord-knowledge/config
+      state_dir: ../instances/maestro-discord-knowledge/state
+      workspace_root: ../instances/maestro-discord-knowledge/workspaces
+      generated_dir: ../.generated/maestro-discord-knowledge
+    openclaw:
+      config_layers:
+        - ../templates/openclaw/org.base.json5
+        - ../templates/openclaw/profiles/usecase.base.json5
+        - ../instances/maestro-discord-knowledge/config/instance.overrides.example.json5
+      docker:
+        image: ghcr.io/openclaw/openclaw:latest
+        container_name: openclaw-maestro-discord-knowledge
+        restart: unless-stopped
+    policy:
+      integrations:
+        allow:
+          - discord
+      models:
+        allow_providers:
+          - openai
+          - anthropic
+    channels:
+      discord:
+        accounts:
+          brain_qa: {}
+          deep_research: {}
+    agents:
+      - id: brain-qa
+        role: usecase
+        workspace: brain-qa
+        agent_dir: agents/brain-qa
+        model: openai/gpt-4.1-mini
+        integrations:
+          - discord
+        skills:
+          - github
+          - coding-agent
+        skill_sources:
+          - bundled
+          - workspace
+        bindings:
+          - match:
+              channel: discord
+              accountId: brain_qa
+      - id: deep-research
+        role: usecase
+        workspace: deep-research
+        agent_dir: agents/deep-research
+        model: openai/gpt-4.1-mini
+        integrations:
+          - discord
+        skills:
+          - github
+          - coding-agent
+        skill_sources:
+          - bundled
+          - workspace
+        bindings:
+          - match:
+              channel: discord
+              accountId: deep_research
+  - id: maestro-discord-systems
+    enabled: true
+    profile: usecase
+    host:
+      bind: 127.0.0.1
+      gateway_port: 19829
+    paths:
+      config_dir: ../instances/maestro-discord-systems/config
+      state_dir: ../instances/maestro-discord-systems/state
+      workspace_root: ../instances/maestro-discord-systems/workspaces
+      generated_dir: ../.generated/maestro-discord-systems
+    openclaw:
+      config_layers:
+        - ../templates/openclaw/org.base.json5
+        - ../templates/openclaw/profiles/usecase.base.json5
+        - ../instances/maestro-discord-systems/config/instance.overrides.example.json5
+      docker:
+        image: ghcr.io/openclaw/openclaw:latest
+        container_name: openclaw-maestro-discord-systems
+        restart: unless-stopped
+    policy:
+      integrations:
+        allow:
+          - discord
+      models:
+        allow_providers:
+          - openai
+          - anthropic
+    channels:
+      discord:
+        accounts:
+          github_manager: {}
+          notion_manager: {}
+    agents:
+      - id: github-manager
+        role: usecase
+        workspace: github-manager
+        agent_dir: agents/github-manager
+        model: openai/gpt-4.1-mini
+        integrations:
+          - discord
+        skills:
+          - github
+          - coding-agent
+        skill_sources:
+          - bundled
+          - workspace
+        bindings:
+          - match:
+              channel: discord
+              accountId: github_manager
+      - id: notion-manager
+        role: usecase
+        workspace: notion-manager
+        agent_dir: agents/notion-manager
+        model: openai/gpt-4.1-mini
+        integrations:
+          - discord
+        skills:
+          - coding-agent
+        skill_sources:
+          - bundled
+          - workspace
+        bindings:
+          - match:
+              channel: discord
+              accountId: notion_manager
+  - id: maestro-discord-infra
+    enabled: true
+    profile: usecase
+    host:
+      bind: 127.0.0.1
+      gateway_port: 19849
+    paths:
+      config_dir: ../instances/maestro-discord-infra/config
+      state_dir: ../instances/maestro-discord-infra/state
+      workspace_root: ../instances/maestro-discord-infra/workspaces
+      generated_dir: ../.generated/maestro-discord-infra
+    openclaw:
+      config_layers:
+        - ../templates/openclaw/org.base.json5
+        - ../templates/openclaw/profiles/usecase.base.json5
+        - ../instances/maestro-discord-infra/config/instance.overrides.example.json5
+      docker:
+        image: ghcr.io/openclaw/openclaw:latest
+        container_name: openclaw-maestro-discord-infra
+        restart: unless-stopped
+    policy:
+      integrations:
+        allow:
+          - discord
+      models:
+        allow_providers:
+          - openai
+          - anthropic
+    channels:
+      discord:
+        accounts:
+          infra_triage: {}
+    agents:
+      - id: infra-triage
+        role: usecase
+        workspace: infra-triage
+        agent_dir: agents/infra-triage
+        model: openai/gpt-4.1-mini
+        integrations:
+          - discord
+        skills:
+          - github
+          - coding-agent
+        skill_sources:
+          - bundled
+          - workspace
+        bindings:
+          - match:
+              channel: discord
+              accountId: infra_triage

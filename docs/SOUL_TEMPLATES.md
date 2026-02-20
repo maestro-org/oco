@@ -10,7 +10,13 @@ Default template directory:
 
 Built-in templates:
 - `business-development`
+- `brain-qa`
+- `deep-research`
+- `github-manager`
+- `infra-triage`
+- `notion-manager`
 - `operations`
+- `product`
 
 List available templates:
 

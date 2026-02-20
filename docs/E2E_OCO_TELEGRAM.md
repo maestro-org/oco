@@ -5,6 +5,8 @@ This guide shows a full example to:
 2. Configure Telegram bot accounts and per-agent routing
 3. Approve Telegram pairings and run a smoke test
 
+For a concise provisioning checklist, see `docs/BOT_ACCESS_SETUP.md`.
+
 ## 1. Prerequisites
 - Docker + Docker Compose
 - `oco` installed and available in PATH

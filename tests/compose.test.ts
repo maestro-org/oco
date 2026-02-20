@@ -68,12 +68,16 @@ describe('compose', () => {
     }
   });
 
-  test('generateCompose injects provider API keys from process env', () => {
+  test('generateCompose injects provider and integration env keys from process env', () => {
     const root = mkdtempSync(join(tmpdir(), 'oco-compose-env-'));
 
     process.env.OPENAI_API_KEY = 'env-openai-key';
     process.env.OPENROUTER_API_KEY = 'env-openrouter-key';
     process.env.BRAVE_API_KEY = 'env-brave-key';
+    process.env.GITHUB_TOKEN = 'env-github-token';
+    process.env.NOTION_API_KEY = 'env-notion-key';
+    process.env.BETTERSTACK_API_TOKEN = 'env-betterstack-token';
+    process.env.BETTERSTACK_API_BASE_URL = 'https://example.betterstack.com';
 
     try {
       const context: InstanceContext = {
@@ -110,10 +114,18 @@ describe('compose', () => {
       expect(env.OPENAI_API_KEY).toBe('env-openai-key');
       expect(env.OPENROUTER_API_KEY).toBe('env-openrouter-key');
       expect(env.BRAVE_API_KEY).toBe('env-brave-key');
+      expect(env.GITHUB_TOKEN).toBe('env-github-token');
+      expect(env.NOTION_API_KEY).toBe('env-notion-key');
+      expect(env.BETTERSTACK_API_TOKEN).toBe('env-betterstack-token');
+      expect(env.BETTERSTACK_API_BASE_URL).toBe('https://example.betterstack.com');
     } finally {
       delete process.env.OPENAI_API_KEY;
       delete process.env.OPENROUTER_API_KEY;
       delete process.env.BRAVE_API_KEY;
+      delete process.env.GITHUB_TOKEN;
+      delete process.env.NOTION_API_KEY;
+      delete process.env.BETTERSTACK_API_TOKEN;
+      delete process.env.BETTERSTACK_API_BASE_URL;
       rmSync(root, { recursive: true, force: true });
     }
   });

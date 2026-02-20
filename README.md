@@ -77,6 +77,10 @@ OPENAI_API_KEY=<provider-key>
 BRAVE_API_KEY=<brave-search-api-key>
 TELEGRAM_BOT_TOKEN_VBARSEGYAN=<telegram-bot-token>
 TELEGRAM_BOT_TOKEN_DRICHARDSON=<telegram-bot-token>
+DISCORD_BOT_TOKEN_BRAIN_QA=<discord-bot-token>
+GITHUB_TOKEN=<github-token>
+NOTION_API_KEY=<notion-token>
+BETTERSTACK_API_TOKEN=<betterstack-token>
 ```
 
 Load env:
@@ -130,10 +134,36 @@ oco tools apply --instance core-human --agent-id drichardson --template business
 oco compose up --instance core-human
 ```
 
+### 7. Maestro Discord Functional Rollout
+Recommended secure grouping:
+- `maestro-discord-knowledge`: `brain-qa`, `deep-research`
+- `maestro-discord-systems`: `github-manager`, `notion-manager`
+- `maestro-discord-infra`: `infra-triage`
+
+If you use `inventory/instances.local.yaml`, merge these new instances there.
+Or run commands with `--inventory inventory/instances.yaml`.
+
+Deploy:
+```bash
+INVENTORY_PATH=inventory/instances.yaml ./scripts/deploy-instance.sh maestro-discord-knowledge
+INVENTORY_PATH=inventory/instances.yaml ./scripts/deploy-instance.sh maestro-discord-systems
+INVENTORY_PATH=inventory/instances.yaml ./scripts/deploy-instance.sh maestro-discord-infra
+```
+
+Apply dedicated templates:
+```bash
+oco --inventory inventory/instances.yaml soul apply --instance maestro-discord-knowledge --agent-id brain-qa --template brain-qa --force
+oco --inventory inventory/instances.yaml tools apply --instance maestro-discord-knowledge --agent-id brain-qa --template brain-qa --force
+```
+
 ## Documentation
 - Deployment runbook: `docs/DEPLOYMENT_RUNBOOK.md`
+- Bot access setup (Telegram + Discord): `docs/BOT_ACCESS_SETUP.md`
 - End-to-end Telegram walkthrough: `docs/E2E_OCO_TELEGRAM.md`
+- End-to-end Maestro Discord walkthrough: `docs/E2E_OCO_DISCORD_MAESTRO.md`
 - Configuration reference: `docs/CONFIGURATION_DETAILS.md`
+- Integrations and use cases: `docs/INTEGRATIONS_AND_USE_CASES.md`
+- Data source convention: `docs/DATA_SOURCES_CONVENTION.md`
 - SOUL template workflow: `docs/SOUL_TEMPLATES.md`
 - TOOLS template workflow: `docs/TOOLS_TEMPLATES.md`
 - Product requirements: `docs/REQUIREMENTS.md`
@@ -155,13 +185,14 @@ rg -n "sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|EC|OPENSSH|PGP|DSA)? 
 ```
 
 ## TODO
-- [ ] Ability to browse the web
 - [ ] Dashboard UI
+  - [ ] Model provider usage and analytics integration
 - [ ] Kubernetes deployments
-- [ ] SSO OAuth support
-- [ ] Model provider usage and analytics integration
+- [ ] SSO OAuth sec layer
 - [ ] Email integration
-- [ ] Add architecture diagram
+- [ ] Architecture diagram doc
+- [ ] Multi-org management
+- [ ] Update to latest OC version
 
 ## License
 MIT (`LICENSE`)
