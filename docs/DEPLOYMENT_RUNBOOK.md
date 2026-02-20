@@ -49,6 +49,8 @@ cp .env.example .env
 Set at least:
 - `OPENCLAW_GATEWAY_TOKEN`
 
+For channel bot provisioning and token wiring details, see `docs/BOT_ACCESS_SETUP.md`.
+
 Export env before deploy:
 ```bash
 set -a
@@ -75,6 +77,13 @@ oco render --instance core-human
 oco compose generate --instance core-human
 oco compose up --instance core-human
 oco health --instance core-human
+```
+
+For the Maestro Discord functional rollout:
+```bash
+./scripts/deploy-instance.sh maestro-discord-knowledge
+./scripts/deploy-instance.sh maestro-discord-systems
+./scripts/deploy-instance.sh maestro-discord-infra
 ```
 
 ## 7. Add an agent
@@ -122,6 +131,11 @@ oco agent add ... --tools-template operations
 - `oco pairing list --instance <instance-id> --channel telegram --account <account> --json` shows expected pairing requests
 - Send a real message through the configured channel account
 - Verify response is from the intended agent/account binding
+
+Discord-specific checks:
+- Each Discord bot has access only to its intended channel.
+- `oco policy effective --instance <instance-id> --agent-id <agent-id>` shows only intended ingress integrations.
+- Tool/API credentials are scoped per instance boundary (`knowledge`, `systems`, `infra`).
 
 ## 9. Update and rollback
 ```bash

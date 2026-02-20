@@ -1,0 +1,32 @@
+{
+  channels: {
+    discord: {
+      groupPolicy: "allowlist",
+      guilds: {
+        // Replace with your Discord server (guild) ID.
+        "REPLACE_WITH_GUILD_ID": {
+          channels: {
+            // Replace with #github-manager channel ID.
+            "REPLACE_WITH_GITHUB_MANAGER_CHANNEL_ID": {
+              allow: true,
+              requireMention: true,
+            },
+            // Replace with #notion-manager channel ID.
+            "REPLACE_WITH_NOTION_MANAGER_CHANNEL_ID": {
+              allow: true,
+              requireMention: true,
+            },
+          },
+        },
+      },
+      accounts: {
+        github_manager: {
+          token: "${DISCORD_BOT_TOKEN_GITHUB_MANAGER}",
+        },
+        notion_manager: {
+          token: "${DISCORD_BOT_TOKEN_NOTION_MANAGER}",
+        },
+      },
+    },
+  },
+}

@@ -1,0 +1,14 @@
+{
+  channels: {
+    discord: {
+      accounts: {
+        brain_qa: {
+          token: "${DISCORD_BOT_TOKEN_BRAIN_QA}",
+        },
+        deep_research: {
+          token: "${DISCORD_BOT_TOKEN_DEEP_RESEARCH}",
+        },
+      },
+    },
+  },
+}

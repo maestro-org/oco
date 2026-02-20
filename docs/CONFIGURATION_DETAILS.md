@@ -115,7 +115,8 @@ Common variables:
 - `ANTHROPIC_API_KEY`
 - `OPENROUTER_API_KEY`
 - `BRAVE_API_KEY` (for `web_search`)
-- channel-specific vars such as `TELEGRAM_BOT_TOKEN_*`
+- channel-specific vars such as `TELEGRAM_BOT_TOKEN_*` and `DISCORD_BOT_TOKEN_*`
+- tool-specific vars such as `GITHUB_TOKEN`, `NOTION_API_KEY`, and `BETTERSTACK_API_TOKEN`
 - CLI path overrides such as `OCO_INVENTORY_PATH`, `OCO_SOUL_TEMPLATES_DIR`, and `OCO_TOOLS_TEMPLATES_DIR`
 
 Use env references in JSON5 layers:
@@ -193,3 +194,18 @@ For new agents:
 ```bash
 oco agent add ... --tools-template operations
 ```
+
+## 13. Isolation Pattern for Functional Agents
+For secure and efficient use-case deployment, group agents by credential risk and write-scope:
+
+- Knowledge/research agents together (mostly read-heavy)
+- System-of-record writers together (GitHub/Notion)
+- Production triage agents isolated (monitoring + infra context)
+
+This repo includes a concrete Discord example using this pattern:
+
+- `maestro-discord-knowledge`
+- `maestro-discord-systems`
+- `maestro-discord-infra`
+
+See `docs/E2E_OCO_DISCORD_MAESTRO.md` for full rollout and test steps.
