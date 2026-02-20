@@ -3,16 +3,16 @@
     discord: {
       groupPolicy: "allowlist",
       guilds: {
-        // Maestro
-        "950173135838273556": {
+        // Replace with your Discord server (guild) ID.
+        "REPLACE_WITH_GUILD_ID": {
           channels: {
-            // #github-manager
-            "1474234438199017595": {
+            // Replace with #github-manager channel ID.
+            "REPLACE_WITH_GITHUB_MANAGER_CHANNEL_ID": {
               allow: true,
               requireMention: true,
             },
-            // #notion-manager
-            "1474234542704431217": {
+            // Replace with #notion-manager channel ID.
+            "REPLACE_WITH_NOTION_MANAGER_CHANNEL_ID": {
               allow: true,
               requireMention: true,
             },
