@@ -1,13 +1,13 @@
 # Deployment Runbook
 
-This runbook is for deploying `oco` against your own organization.
+This runbook covers a standard `oco` deployment for any organization.
 
 ## 1. Prerequisites
-- Node `25.6.1`
-- Bun `1.3.9`
+- Node `25+`
+- Bun `1.3+`
 - Docker + Docker Compose
 
-## 2. Install and build
+## 2. Install
 ```bash
 bun install
 bun run build
@@ -23,55 +23,53 @@ hash -r
 oco --help
 ```
 
-## 3. Initialize and configure organization inventory
-Create a local inventory from the tracked template:
+## 3. Initialize Inventory
 ```bash
 oco inventory init
 ```
 
-Then edit `inventory/instances.local.yaml`:
-- `organization.org_id`
-- `organization.org_slug`
-- `organization.display_name`
-- gateway `instances[*].host.gateway_port`
-- agent/account bindings under `instances[*].agents[*].bindings`
-- policy allowlists (`defaults.policy`, instance `policy`)
+Update `inventory/instances.local.yaml`:
+- organization metadata
+- instance ports and paths
+- account bindings
+- policy allowlists
 
 Notes:
-- `inventory/instances.local.yaml` is ignored by git.
-- `oco` auto-selects `inventory/instances.local.yaml` when present.
-- Override path with `--inventory <path>` or `OCO_INVENTORY_PATH`.
+- `inventory/instances.local.yaml` is gitignored.
+- `oco` auto-selects it when present.
+- override with `--inventory <path>` or `OCO_INVENTORY_PATH`.
 
-## 4. Configure secrets
+## 4. Configure Secrets
 ```bash
 cp .env.example .env
 ```
+
 Set at least:
 - `OPENCLAW_GATEWAY_TOKEN`
+- provider key(s) you plan to use
+- channel/tool keys required by your agents
 
-For channel bot provisioning and token wiring details, see `docs/BOT_ACCESS_SETUP.md`.
-
-Export env before deploy:
+Load env:
 ```bash
 set -a
 source .env
 set +a
 ```
 
-## 5. Validate before deploy
+## 5. Validate Before Deploy
 ```bash
 oco validate
 oco policy validate
 oco preflight --instance core-human
 ```
 
-## 6. Deploy an instance
-Use the helper script:
+## 6. Deploy
+Helper script:
 ```bash
 ./scripts/deploy-instance.sh core-human
 ```
 
-Or manual:
+Manual equivalent:
 ```bash
 oco render --instance core-human
 oco compose generate --instance core-human
@@ -79,19 +77,18 @@ oco compose up --instance core-human
 oco health --instance core-human
 ```
 
-For the Maestro Discord functional rollout:
+For multi-instance functional deployments, deploy each target instance:
 ```bash
-./scripts/deploy-instance.sh maestro-discord-knowledge
-./scripts/deploy-instance.sh maestro-discord-systems
-./scripts/deploy-instance.sh maestro-discord-infra
+./scripts/deploy-instance.sh <instance-id>
 ```
 
-## 7. Add an agent
+## 7. Agent Operations
+Add an agent:
 ```bash
 ./scripts/add-agent.sh core-human procurement usecase telegram:procurement openai/gpt-4.1-mini
 ```
 
-Equivalent manual command:
+Manual equivalent:
 ```bash
 oco agent add \
   --instance core-human \
@@ -103,41 +100,20 @@ oco agent add \
 oco compose restart --instance core-human
 ```
 
-Apply a SOUL template (existing agent):
+Apply templates:
 ```bash
-oco soul list
 oco soul apply --instance core-human --agent-id procurement --template operations
-```
-
-Or apply during add:
-```bash
-oco agent add ... --soul-template operations
-```
-
-Apply a TOOLS template (existing agent):
-```bash
-oco tools list
 oco tools apply --instance core-human --agent-id procurement --template operations
 ```
 
-Or apply during add:
-```bash
-oco agent add ... --tools-template operations
-```
+## 8. Smoke Test Checklist
+- `oco health --instance <instance-id>` is `running`.
+- `oco agent list --instance <instance-id>` shows expected agents.
+- Pairing (if enabled) works for expected accounts.
+- Real channel message reaches the intended bound agent.
+- `oco policy effective --instance <instance-id> --agent-id <agent-id>` matches intended scope.
 
-## 8. Smoke test checklist
-- `oco health --instance <instance-id>` returns `running`
-- `oco agent list --instance <instance-id>` shows expected agent(s)
-- `oco pairing list --instance <instance-id> --channel telegram --account <account> --json` shows expected pairing requests
-- Send a real message through the configured channel account
-- Verify response is from the intended agent/account binding
-
-Discord-specific checks:
-- Each Discord bot has access only to its intended channel.
-- `oco policy effective --instance <instance-id> --agent-id <agent-id>` shows only intended ingress integrations.
-- Tool/API credentials are scoped per instance boundary (`knowledge`, `systems`, `infra`).
-
-## 9. Update and rollback
+## 9. Update and Rollback
 ```bash
 oco deploy update --instance core-human --image-tag <tag>
 oco deploy revisions --instance core-human

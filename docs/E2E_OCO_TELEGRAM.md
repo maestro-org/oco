@@ -1,44 +1,25 @@
-# E2E Example: Org Setup + Telegram Agents
+# E2E Example: Telegram Multi-Agent Setup
 
-This guide shows a full example to:
-1. Configure an organization in a local inventory
-2. Configure Telegram bot accounts and per-agent routing
-3. Approve Telegram pairings and run a smoke test
-
-For a concise provisioning checklist, see `docs/BOT_ACCESS_SETUP.md`.
+This guide shows a complete Telegram deployment flow for a single instance with per-account routing.
 
 ## 1. Prerequisites
 - Docker + Docker Compose
-- `oco` installed and available in PATH
-- OpenClaw image pull access (`ghcr.io/openclaw/openclaw:latest`)
-- Telegram bots created via `@BotFather` (one bot per agent account)
+- `oco` in PATH
+- Telegram bots created in `@BotFather`
 
-Check CLI:
-```bash
-oco --help
-```
-
-If `oco` is not in PATH, use the local binary for this repo:
-```bash
-./scripts/oco.sh --help
-```
-
-## 2. Initialize and Configure Org + Instance + Agent Routing
-Create a local inventory from the tracked template:
+## 2. Initialize Local Inventory
 ```bash
 oco inventory init
 ```
 
-Then edit `inventory/instances.local.yaml`.
-
-Use this as a working example:
+Edit `inventory/instances.local.yaml` with a structure like:
 
 ```yaml
 version: 1
 organization:
-  org_id: maestro
-  org_slug: maestro
-  display_name: Maestro
+  org_id: acme
+  org_slug: acme
+  display_name: Acme
 
 defaults:
   port_stride: 20
@@ -46,16 +27,6 @@ defaults:
     integrations:
       allow: [telegram]
       deny: []
-    skills:
-      allow: []
-      deny: []
-      allow_sources: [bundled, managed, workspace]
-      deny_sources: []
-    models:
-      allow_providers: [openai, anthropic, openrouter, litellm, ollama]
-      deny_providers: []
-      allow_models: []
-      deny_models: []
 
 instances:
   - id: core-human
@@ -78,59 +49,43 @@ instances:
         image: ghcr.io/openclaw/openclaw:latest
         container_name: openclaw-core-human
         restart: unless-stopped
-    policy:
-      integrations:
-        allow: [telegram]
-      models:
-        allow_providers: [openai, anthropic]
     channels:
       telegram:
         accounts:
-          vbarsegyan: {}
-          drichardson: {}
+          owner: {}
+          research: {}
     agents:
-      - id: vbarsegyan
+      - id: owner
         role: human
-        workspace: vbarsegyan
-        agent_dir: agents/vbarsegyan
+        workspace: owner
+        agent_dir: agents/owner
         model: openai/gpt-4.1-mini
-        integrations:
-          - telegram
-        skills:
-          - github
-          - coding-agent
-        skill_sources:
-          - bundled
+        integrations: [telegram]
         bindings:
           - match:
               channel: telegram
-              accountId: vbarsegyan
-      - id: drichardson
-        role: human
-        workspace: drichardson
-        agent_dir: agents/drichardson
+              accountId: owner
+      - id: research
+        role: usecase
+        workspace: research
+        agent_dir: agents/research
         model: openai/gpt-4.1-mini
-        integrations:
-          - telegram
-        skills:
-          - github
-        skill_sources:
-          - bundled
+        integrations: [telegram]
         bindings:
           - match:
               channel: telegram
-              accountId: drichardson
+              accountId: research
 ```
 
-## 3. Configure Telegram Tokens in Config Layer
-Create a local overrides file from the tracked example, then edit it:
+## 3. Configure Telegram Tokens
+Create local override:
 
 ```bash
 cp instances/core-human/config/instance.overrides.example.json5 \
   instances/core-human/config/instance.overrides.json5
 ```
 
-Edit `instances/core-human/config/instance.overrides.json5`.
+Set account tokens:
 
 ```json5
 {
@@ -139,38 +94,34 @@ Edit `instances/core-human/config/instance.overrides.json5`.
       dmPolicy: "pairing",
       groupPolicy: "allowlist",
       accounts: {
-        vbarsegyan: {
-          botToken: "${TELEGRAM_BOT_TOKEN_VBARSEGYAN}",
+        owner: {
+          botToken: "${TELEGRAM_BOT_TOKEN_OWNER}",
         },
-        drichardson: {
-          botToken: "${TELEGRAM_BOT_TOKEN_DRICHARDSON}",
-        }
+        research: {
+          botToken: "${TELEGRAM_BOT_TOKEN_RESEARCH}",
+        },
       },
     },
   },
 }
 ```
 
-Why this matters:
-- You are using multi-account routing (`vbarsegyan`, `drichardson`), so each account should have its own bot token.
-- `TELEGRAM_BOT_TOKEN` env fallback is only for the default account, not your named multi-account setup.
-
-## 4. Configure Secrets
-Create `.env`:
-
+## 4. Configure Env
 ```bash
 cp .env.example .env
 ```
 
-Set:
+Set values:
+
 ```dotenv
 OPENCLAW_GATEWAY_TOKEN=<strong-random-token>
 OPENAI_API_KEY=<provider-key>
-TELEGRAM_BOT_TOKEN_VBARSEGYAN=<token-from-botfather>
-TELEGRAM_BOT_TOKEN_DRICHARDSON=<token-from-botfather>
+TELEGRAM_BOT_TOKEN_OWNER=<token>
+TELEGRAM_BOT_TOKEN_RESEARCH=<token>
 ```
 
-Load env for the current shell:
+Load:
+
 ```bash
 set -a
 source .env
@@ -178,93 +129,33 @@ set +a
 ```
 
 ## 5. Validate and Deploy
-Run from repo root:
-
 ```bash
 oco validate
 oco policy validate
 oco preflight --instance core-human
-
 oco render --instance core-human
 oco compose generate --instance core-human
 oco compose up --instance core-human
 oco health --instance core-human
 ```
 
-Expected health:
-- `status` should be `running`
-
-## 6. Verify Agent Inventory and Runtime
-```bash
-oco agent list --instance core-human
-oco compose ps --instance core-human
-```
-
-Optional logs:
-```bash
-oco compose logs --instance core-human
-```
-
-## 7. Connect Telegram Users to Each Agent (Pairing)
-With `dmPolicy: pairing`, Telegram DMs require approval.
-
-1. In Telegram, DM each bot and send `/start`.
-2. List pending requests for each account:
+## 6. Approve Pairings
+In Telegram, DM each bot and send `/start`, then approve:
 
 ```bash
-oco pairing list --instance core-human --channel telegram --account vbarsegyan --json
-oco pairing list --instance core-human --channel telegram --account drichardson --json
+oco pairing list --instance core-human --channel telegram --account owner --json
+oco pairing list --instance core-human --channel telegram --account research --json
+
+oco pairing approve --instance core-human --channel telegram --account owner --code <PAIRING_CODE>
+oco pairing approve --instance core-human --channel telegram --account research --code <PAIRING_CODE>
 ```
 
-3. Approve each pairing code:
-
-```bash
-oco pairing approve --instance core-human --channel telegram --account vbarsegyan --code <PAIRING_CODE>
-oco pairing approve --instance core-human --channel telegram --account drichardson --code <PAIRING_CODE>
-```
-
-## 8. Smoke Test Routing
-- Send a DM to the `vbarsegyan` bot and verify it responds as `vbarsegyan`.
-- Send a DM to the `drichardson` bot and verify it responds as `drichardson`.
-- Re-check:
+## 7. Smoke Test
+- DM each bot and verify response maps to the intended agent.
+- Verify policy and health:
 
 ```bash
 oco health --instance core-human
-oco policy effective --instance core-human --agent-id vbarsegyan
-oco policy effective --instance core-human --agent-id drichardson
+oco policy effective --instance core-human --agent-id owner
+oco policy effective --instance core-human --agent-id research
 ```
-
-## 9. Add or Remove Agents
-Add a new Telegram-routed agent:
-
-```bash
-oco agent add \
-  --instance core-human \
-  --agent-id support \
-  --role usecase \
-  --account telegram:support \
-  --integration telegram \
-  --model openai/gpt-4.1-mini
-```
-
-Then add a token entry for `support` in `instances/core-human/config/instance.overrides.json5`, add `TELEGRAM_BOT_TOKEN_SUPPORT` to `.env`, and apply changes:
-
-```bash
-set -a
-source .env
-set +a
-oco compose up --instance core-human
-oco agent list --instance core-human
-```
-
-Remove an agent:
-
-```bash
-oco agent remove --instance core-human --agent-id support
-oco compose up --instance core-human
-```
-
-## 10. References
-- Telegram channel docs: https://docs.openclaw.ai/channels/telegram
-- Pairing CLI docs: https://docs.openclaw.ai/cli/pairing
-- Configuration reference (`channels`, `bindings`, multi-account): https://docs.openclaw.ai/gateway/configuration-reference

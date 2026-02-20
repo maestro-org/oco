@@ -1,86 +1,59 @@
 # Configuration Details
 
-This document explains how `oco` configuration is structured, merged, and applied.
+This document describes how `oco` configuration is sourced, merged, and validated.
 
 ## 1. Source of Truth
 - `inventory/instances.example.yaml`: tracked reference template.
-- `inventory/instances.local.yaml`: local inventory (recommended, gitignored).
-- `inventory/instances.yaml`: fallback inventory path.
-- `templates/openclaw/*.json5`: reusable baseline layers.
-- `instances/<id>/config/instance.overrides.example.json5`: tracked example overrides.
-- `instances/<id>/config/instance.overrides.json5`: local org-specific overrides (gitignored).
+- `inventory/instances.local.yaml`: recommended local inventory (gitignored).
+- `inventory/instances.yaml`: fallback tracked inventory.
+- `templates/openclaw/*.json5`: shared base config layers.
+- `instances/<id>/config/instance.overrides.example.json5`: tracked override examples.
+- `instances/<id>/config/instance.overrides.json5`: local overrides (gitignored).
 
-Inventory path resolution order:
+Inventory resolution order:
 1. `--inventory <path>`
 2. `OCO_INVENTORY_PATH`
 3. `inventory/instances.local.yaml` (if present)
 4. `inventory/instances.yaml`
 
-Generated runtime files (do not commit):
-- `.generated/<instance>/openclaw.resolved.json`
-- `instances/<instance>/config/openclaw.json5`
-- `.generated/<instance>/docker-compose.yaml`
-
 ## 2. Render and Merge Order
-For each instance, `oco` resolves config in this order:
-1. Inventory-defined layer order (`openclaw.config_layers`)
-2. Runtime overlay derived from inventory (`gateway`, `agents`, `bindings`, `channels`)
-3. Environment variable substitution (`${VAR}` / `${VAR:-fallback}`)
+For each instance, `oco` applies:
+1. `openclaw.config_layers` in listed order
+2. runtime overlay from inventory (`gateway`, `agents`, `bindings`, `channels`)
+3. environment substitution (`${VAR}` / `${VAR:-fallback}`)
 
-Later layers override earlier ones.
-
-Safety default in the shared template:
-- `agents.defaults.contextPruning.mode` is set to `off` to keep OpenAI Responses reasoning/tool chains intact during replay.
-- If you re-enable pruning, validate multi-turn tool conversations first (especially on GPT-5 class models).
-
-One-time recovery for already-broken sessions:
-- If a session is already failing with `Item 'rs_...' ... required following item`, start a fresh session id for that conversation.
-- In self-hosted state, remove the stale `sessionId` mapping from `instances/<id>/state/agents/<agent>/sessions/sessions.json` so the next inbound message creates a new session.
+Later layers override earlier layers.
 
 ## 3. Inventory Structure
 
-## 3.1 Top-level
-- `version`: inventory schema version (`1`).
-- `organization`: org metadata (`org_id`, `org_slug`, `display_name`).
-- `defaults`: org-wide defaults.
-- `instances`: list of gateway instances.
+Top level:
+- `version`
+- `organization`
+- `defaults`
+- `instances[]`
 
-## 3.2 `defaults`
-- `port_stride`: reserved port range window per instance.
-- `policy.integrations`: integration allow/deny rules.
-- `policy.skills`: skill allow/deny and source controls.
-- `policy.models`: provider/model allow/deny controls.
+`defaults`:
+- `port_stride`
+- `policy.integrations`
+- `policy.skills`
+- `policy.models`
 
-## 3.3 `instances[]`
-- `id`: unique instance id.
-- `enabled`: include instance in lifecycle operations.
-- `profile`: logical profile (`human`, `usecase`, etc.).
-- `host`: bind and gateway port.
-- `paths`: config/state/workspace/generated paths.
-- `openclaw.config_layers`: ordered JSON5 layer list.
-- `openclaw.docker`: image/container/restart/env overrides.
-- `policy`: instance-level policy overrides.
-- `channels`: channel account configuration input.
-- `agents`: agent definitions and routing.
+`instances[]`:
+- `id`, `enabled`, `profile`
+- `host`, `paths`
+- `openclaw.config_layers`, `openclaw.docker`
+- `policy`
+- `channels`
+- `agents`
 
-## 4. Agent Configuration
-Each `instances[].agents[]` entry supports:
-- `id`: required unique id in instance.
-- `role`: operational role (`human`, `usecase`).
-- `workspace`: workspace name/path suffix.
-- `agent_dir`: state dir suffix.
-- `model`: model id, e.g. `openai/gpt-4.1-mini`.
-- `integrations`: expected integration allowlist for policy checks.
-- `skills`: optional skill names for policy checks.
-- `skill_sources`: allowed skill sources (`bundled`, `managed`, `workspace`).
-- `bindings`: channel routing matchers.
+## 4. Agent and Binding Rules
+Each agent supports:
+- `id`, `role`, `workspace`, `agent_dir`
+- `model`
+- `integrations`, `skills`, `skill_sources`
+- `bindings`
 
-Runtime rendering maps these to OpenClaw `agents.list[]` and binding routes.
-
-## 5. Bindings and Routing
-`bindings` map inbound channel/account traffic to a specific agent.
-
-Example:
+Example binding:
 ```yaml
 bindings:
   - match:
@@ -88,38 +61,35 @@ bindings:
       accountId: owner
 ```
 
-Validation enforces no duplicate `channel:accountId` binding inside an instance.
+Validation prevents duplicate `channel:accountId` bindings within the same instance.
 
-Recommended naming convention:
-- agent `id`: lowercase slug (`drichardson`, `saugustine`)
-- Telegram account `accountId`: lowercase snake_case (`drichardson`, `scott_augustine`)
-- Human display name: optional `name` field in Title Case (`Scott Augustine`)
+Naming guidance:
+- agent `id`: lowercase slug (`owner`, `research_ops`)
+- account `accountId`: lowercase snake_case (`owner`, `research_ops`)
+- optional display `name`: Title Case (`Research Ops`)
 
-## 6. Policies and Precedence
-Effective policy precedence:
-1. `defaults.policy` (org-wide)
-2. `instances[].policy` (instance override)
-3. agent-level inferred checks (model/integration/skill fields)
+## 5. Policy Precedence
+Effective policy order:
+1. `defaults.policy`
+2. `instances[].policy`
+3. agent-declared requirements (`model`, `integrations`, `skills`)
 
-Use:
+Useful commands:
 ```bash
 oco policy validate
 oco policy effective --instance <id>
 oco policy effective --instance <id> --agent-id <agent-id>
 ```
 
-## 7. Environment Variables
+## 6. Environment Variables
 Common variables:
 - `OPENCLAW_GATEWAY_TOKEN`
-- `OPENAI_API_KEY`
-- `ANTHROPIC_API_KEY`
-- `OPENROUTER_API_KEY`
-- `BRAVE_API_KEY` (for `web_search`)
-- channel-specific vars such as `TELEGRAM_BOT_TOKEN_*` and `DISCORD_BOT_TOKEN_*`
-- tool-specific vars such as `GITHUB_TOKEN`, `NOTION_API_KEY`, and `BETTERSTACK_API_TOKEN`
-- CLI path overrides such as `OCO_INVENTORY_PATH`, `OCO_SOUL_TEMPLATES_DIR`, and `OCO_TOOLS_TEMPLATES_DIR`
+- provider keys (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `OPENROUTER_API_KEY`)
+- channel keys (`TELEGRAM_BOT_TOKEN*`, `DISCORD_BOT_TOKEN*`)
+- action keys (`GITHUB_TOKEN`, `NOTION_API_KEY`, `BETTERSTACK_API_TOKEN`, `BETTERSTACK_API_BASE_URL`, `BRAVE_API_KEY`)
+- CLI path overrides (`OCO_INVENTORY_PATH`, `OCO_SOUL_TEMPLATES_DIR`, `OCO_TOOLS_TEMPLATES_DIR`)
 
-Use env references in JSON5 layers:
+Example JSON5 env reference:
 ```json5
 {
   gateway: {
@@ -130,26 +100,27 @@ Use env references in JSON5 layers:
 }
 ```
 
-## 8. Compose Generation
-`oco compose generate --instance <id>` produces a per-instance compose manifest with:
+## 7. Compose Generation
+`oco compose generate --instance <id>` creates per-instance compose manifests with:
 - isolated mounts for config/state/workspaces
-- bound host port from inventory
-- container env for OpenClaw paths
-- passthrough provider keys from shell env when present
+- host port from inventory
+- OpenClaw runtime path envs
+- passthrough provider/integration env vars when present
 
-## 9. Safety Rules for OSS Repos
+## 8. Safety Rules
 Do not commit:
-- `.env` and local env variants
-- rendered runtime config files under `instances/*/config/openclaw.json5*`
-- `instances/*/state/**` and `instances/*/workspaces/**`
+- `.env` files
+- rendered `instances/*/config/openclaw.json5*`
+- `instances/*/state/**`
+- `instances/*/workspaces/**`
 
-Recommended checks before pushing:
+Recommended pre-push checks:
 ```bash
 git status
 rg -n "sk-proj-|botToken\":\"|BEGIN PRIVATE KEY|OPENAI_API_KEY=" . --glob '!node_modules/**' --glob '!.git/**'
 ```
 
-## 10. Validation and Deployment Flow
+## 9. Validation and Deployment Flow
 ```bash
 oco inventory init
 
@@ -160,52 +131,23 @@ set +a
 oco validate
 oco policy validate
 oco preflight --instance core-human
-
 oco render --instance core-human
 oco compose generate --instance core-human
 oco compose up --instance core-human
 oco health --instance core-human
 ```
 
-## 11. SOUL Template Workflow
-Use `templates/souls/*.md` for reusable agent personas:
-
+## 10. Template Workflows
+Apply SOUL template:
 ```bash
 oco soul list
-oco soul apply --instance core-human --agent-id <agent-id> --template operations
+oco soul apply --instance <instance-id> --agent-id <agent-id> --template <template-name>
 ```
 
-For new agents:
-
-```bash
-oco agent add ... --soul-template operations
-```
-
-## 12. TOOLS Template Workflow
-Use `templates/tools/*.md` for reusable `TOOLS.md` bootstrap content:
-
+Apply TOOLS template:
 ```bash
 oco tools list
-oco tools apply --instance core-human --agent-id <agent-id> --template operations
+oco tools apply --instance <instance-id> --agent-id <agent-id> --template <template-name>
 ```
 
-For new agents:
-
-```bash
-oco agent add ... --tools-template operations
-```
-
-## 13. Isolation Pattern for Functional Agents
-For secure and efficient use-case deployment, group agents by credential risk and write-scope:
-
-- Knowledge/research agents together (mostly read-heavy)
-- System-of-record writers together (GitHub/Notion)
-- Production triage agents isolated (monitoring + infra context)
-
-This repo includes a concrete Discord example using this pattern:
-
-- `maestro-discord-knowledge`
-- `maestro-discord-systems`
-- `maestro-discord-infra`
-
-See `docs/E2E_OCO_DISCORD_MAESTRO.md` for full rollout and test steps.
+For isolation guidance across functional agents, see `docs/E2E_OCO_DISCORD_FUNCTIONAL_AGENTS.md`.
