@@ -19,6 +19,14 @@
 curl -sS "$BETTERSTACK_API_BASE_URL" -H "Authorization: Bearer $BETTERSTACK_API_TOKEN" -H "Content-Type: application/json"
 ```
 
+`jq` may be unavailable in some runtimes. Prefer `node`/`python` JSON parsing or skill scripts.
+
+Preferred incident-name command:
+
+```bash
+bash skills/betterstack-uptime-triage/scripts/uptime_incident_names.sh 5
+```
+
 ## Triage Workflow
 
 1. Capture current alerts/incidents from Better Stack.

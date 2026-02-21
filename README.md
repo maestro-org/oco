@@ -111,7 +111,7 @@ oco tools apply --instance core-human --agent-id support --template operations -
 ```
 
 ## Recommended Functional Isolation
-Group by credential risk and write scope:
+Group by credential risk and write scope. For example:
 - `discord-knowledge`: read-heavy QA/research agents.
 - `discord-systems`: write-capable system-of-record agents (GitHub/Notion).
 - `discord-infra`: monitoring + incident triage agents.
@@ -119,16 +119,7 @@ Group by credential risk and write scope:
 Detailed rollout: `docs/E2E_OCO_DISCORD_FUNCTIONAL_AGENTS.md`
 
 ## Documentation
-- `docs/DEPLOYMENT_RUNBOOK.md`
-- `docs/CONFIGURATION_DETAILS.md`
-- `docs/INTEGRATIONS_AND_USE_CASES.md`
-- `docs/BOT_ACCESS_SETUP.md`
-- `docs/E2E_OCO_TELEGRAM.md`
-- `docs/E2E_OCO_DISCORD_FUNCTIONAL_AGENTS.md`
-- `docs/DATA_SOURCES_CONVENTION.md`
-- `docs/SOUL_TEMPLATES.md`
-- `docs/TOOLS_TEMPLATES.md`
-- `docs/REQUIREMENTS.md`
+Comprehensive documentation is available in `docs/`, including deployment steps, usage examples, and reusable templates.
 
 ## Open Source Safety
 - Keep secrets in local `.env` only.
