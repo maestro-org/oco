@@ -1,0 +1,4 @@
+interface:
+  display_name: "BetterStack Uptime Triage"
+  short_description: "Triage BetterStack Uptime incidents and monitors."
+  default_prompt: "Analyze BetterStack Uptime monitors and incidents, summarize impact and likely causes, and propose concrete mitigations with owner-ready next steps."

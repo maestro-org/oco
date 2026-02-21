@@ -158,6 +158,7 @@ instances:
         integrations:
           - discord
         skills:
+          - betterstack-uptime-triage
           - github
           - coding-agent
         skill_sources:
