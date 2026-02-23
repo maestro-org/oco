@@ -26,6 +26,7 @@ import {
   updateInstance,
   validateOnly,
 } from './workflow';
+import { healOpenAiReasoningSessions } from './sessions';
 import { applySoulTemplate, listSoulTemplates } from './soul';
 import { applyToolsTemplate, listToolsTemplates } from './tools';
 
@@ -198,6 +199,19 @@ function run(): void {
     .action((options: { instance: string; account: string; code: string; channel: string }) => {
       const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(pairingApprove(invFile, options.instance, options.channel, options.code, options.account));
+    });
+
+  const session = program.command('session').description('Session maintenance');
+
+  session
+    .command('heal-openai')
+    .description('Detect and optionally clear sessions stuck in OpenAI reasoning-chain 400 loops')
+    .requiredOption('--instance <id>', 'Instance ID')
+    .option('--agent-id <id>', 'Filter to a single agent')
+    .option('--apply', 'Delete broken session entries from sessions.json', false)
+    .action((options: { instance: string; agentId?: string; apply: boolean }) => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      printJson(healOpenAiReasoningSessions(invFile, options.instance, options.apply, options.agentId));
     });
 
   const agent = program.command('agent').description('Agent lifecycle commands');

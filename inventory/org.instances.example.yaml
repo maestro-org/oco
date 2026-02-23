@@ -43,7 +43,7 @@ instances:
         - ../templates/openclaw/profiles/human.base.json5
         - ../orgs/example-org/instances/core-human/config/instance.overrides.example.json5
       docker:
-        image: ghcr.io/openclaw/openclaw:latest
+        image: ghcr.io/openclaw/openclaw:2026.2.22
         container_name: openclaw-example-org-core-human
         restart: unless-stopped
         environment:

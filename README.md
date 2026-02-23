@@ -128,6 +128,13 @@ Run org-scoped commands with the helper script:
 ./scripts/org.sh <org> health --instance <instance-id>
 ```
 
+Recover from OpenAI reasoning-chain session loops (without changing model/provider):
+```bash
+oco session heal-openai --instance core-human
+oco session heal-openai --instance core-human --apply
+oco compose restart --instance core-human
+```
+
 ## Recommended Functional Isolation
 Group by credential risk and write scope. For example:
 - `discord-knowledge`: read-heavy QA/research agents.
