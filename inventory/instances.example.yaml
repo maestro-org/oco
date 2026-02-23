@@ -68,7 +68,7 @@ instances:
         - ../templates/openclaw/profiles/human.base.json5
         - ../instances/core-human/config/instance.overrides.example.json5
       docker:
-        image: ghcr.io/openclaw/openclaw:latest
+        image: ghcr.io/openclaw/openclaw:2026.2.22
         container_name: openclaw-core-human
         restart: unless-stopped
     policy:
@@ -133,7 +133,7 @@ instances:
         - ../templates/openclaw/profiles/usecase.base.json5
         - ../instances/maestro-discord-knowledge/config/instance.overrides.example.json5
       docker:
-        image: ghcr.io/openclaw/openclaw:latest
+        image: ghcr.io/openclaw/openclaw:2026.2.22
         container_name: openclaw-maestro-discord-knowledge
         restart: unless-stopped
     policy:
@@ -202,7 +202,7 @@ instances:
         - ../templates/openclaw/profiles/usecase.base.json5
         - ../instances/maestro-discord-systems/config/instance.overrides.example.json5
       docker:
-        image: ghcr.io/openclaw/openclaw:latest
+        image: ghcr.io/openclaw/openclaw:2026.2.22
         container_name: openclaw-maestro-discord-systems
         restart: unless-stopped
     policy:
@@ -269,7 +269,7 @@ instances:
         - ../templates/openclaw/profiles/usecase.base.json5
         - ../instances/maestro-discord-infra/config/instance.overrides.example.json5
       docker:
-        image: ghcr.io/openclaw/openclaw:latest
+        image: ghcr.io/openclaw/openclaw:2026.2.22
         container_name: openclaw-maestro-discord-infra
         restart: unless-stopped
     policy:
