@@ -1,0 +1,25 @@
+{
+  gateway: {
+    auth: {
+      token: "${EXAMPLE_ORG_OPENCLAW_GATEWAY_TOKEN}",
+    },
+  },
+  agents: {
+    defaults: {
+      contextPruning: {
+        mode: "off",
+      },
+    },
+  },
+  channels: {
+    telegram: {
+      dmPolicy: "pairing",
+      groupPolicy: "allowlist",
+      accounts: {
+        owner: {
+          botToken: "${EXAMPLE_ORG_TELEGRAM_BOT_TOKEN_OWNER}",
+        },
+      },
+    },
+  },
+}

@@ -47,6 +47,12 @@ Edit `inventory/instances.local.yaml` (recommended) for:
 - channel accounts + agent bindings
 - policy allow/deny defaults
 
+For isolated multi-org setups, use one inventory per org:
+- `inventory/<org>.instances.local.yaml` (local, gitignored), or
+- `inventory/<org>.instances.yaml` (tracked template/reference).
+
+A generic multi-org example is available at `inventory/org.instances.example.yaml`.
+
 Path resolution order:
 1. `--inventory <path>`
 2. `OCO_INVENTORY_PATH`
@@ -79,6 +85,11 @@ source .env
 set +a
 ```
 
+For multi-org isolation, keep secrets in separate files (for example `.env.acme`, `.env.beta-org`) and load via:
+```bash
+ORG_ENV_FILE=.env.acme ./scripts/org.sh acme validate
+```
+
 ### 4. Validate and Deploy
 ```bash
 oco validate
@@ -99,7 +110,7 @@ oco agent add \
   --role usecase \
   --account telegram:support \
   --integration telegram \
-  --model openai/gpt-4.1-mini \
+  --model openai/gpt-5.1 \
   --soul-template operations \
   --tools-template operations
 ```
@@ -108,6 +119,13 @@ Apply templates to an existing agent:
 ```bash
 oco soul apply --instance core-human --agent-id support --template operations --force
 oco tools apply --instance core-human --agent-id support --template operations --force
+```
+
+Run org-scoped commands with the helper script:
+```bash
+./scripts/org.sh <org> validate
+./scripts/org.sh <org> compose up --instance <instance-id>
+./scripts/org.sh <org> health --instance <instance-id>
 ```
 
 ## Recommended Functional Isolation

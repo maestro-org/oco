@@ -38,6 +38,8 @@ Notes:
 - `inventory/instances.local.yaml` is gitignored.
 - `oco` auto-selects it when present.
 - override with `--inventory <path>` or `OCO_INVENTORY_PATH`.
+- For isolated multi-org operations, use `inventory/<org>.instances.local.yaml` or `inventory/<org>.instances.yaml`.
+- See `inventory/org.instances.example.yaml` for a reusable pattern.
 
 ## 4. Configure Secrets
 ```bash
@@ -54,6 +56,11 @@ Load env:
 set -a
 source .env
 set +a
+```
+
+For isolated multi-org secret management, keep one env file per org and run commands with:
+```bash
+ORG_ENV_FILE=.env.<org> ./scripts/org.sh <org> validate
 ```
 
 ## 5. Validate Before Deploy
@@ -82,10 +89,16 @@ For multi-instance functional deployments, deploy each target instance:
 ./scripts/deploy-instance.sh <instance-id>
 ```
 
+For org-specific deployments:
+```bash
+./scripts/org.sh <org> compose up --instance <instance-id>
+./scripts/org.sh <org> health --instance <instance-id>
+```
+
 ## 7. Agent Operations
 Add an agent:
 ```bash
-./scripts/add-agent.sh core-human procurement usecase telegram:procurement openai/gpt-4.1-mini
+./scripts/add-agent.sh core-human procurement usecase telegram:procurement openai/gpt-5.1
 ```
 
 Manual equivalent:
@@ -96,7 +109,7 @@ oco agent add \
   --role usecase \
   --account telegram:procurement \
   --integration telegram \
-  --model openai/gpt-4.1-mini
+  --model openai/gpt-5.1
 oco compose restart --instance core-human
 ```
 

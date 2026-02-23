@@ -52,7 +52,7 @@ describe('render', () => {
         agents: [
           {
             id: 'alex',
-            model: 'openai/gpt-4.1-mini',
+            model: 'openai/gpt-5.1',
             bindings: [{ match: { channel: 'telegram', accountId: 'alex' } }],
           },
         ],
@@ -72,8 +72,8 @@ describe('render', () => {
       expect(auth.token).toBe('from-env-token');
       expect(bindings[0].agentId).toBe('alex');
       expect(accounts.alex).toEqual({});
-      expect(agents[0].model).toBe('openai/gpt-4.1-mini');
-      expect((agentDefaults.model as Record<string, unknown>).primary).toBe('openai/gpt-4.1-mini');
+      expect(agents[0].model).toBe('openai/gpt-5.1');
+      expect((agentDefaults.model as Record<string, unknown>).primary).toBe('openai/gpt-5.1');
 
       expect(existsSync(result.generatedPath)).toBe(true);
       expect(existsSync(join(root, 'instances', 'core', 'config', 'openclaw.json5'))).toBe(true);

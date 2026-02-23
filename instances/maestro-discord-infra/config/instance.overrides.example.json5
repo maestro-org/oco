@@ -1,6 +1,11 @@
 {
   channels: {
     discord: {
+      groupPolicy: "allowlist",
+      guilds: {
+        // Add one or more Discord guild IDs your bot is allowed to process.
+        "YOUR_DISCORD_GUILD_ID": {},
+      },
       accounts: {
         infra_triage: {
           token: "${DISCORD_BOT_TOKEN_INFRA_TRIAGE}",

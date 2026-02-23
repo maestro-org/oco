@@ -59,7 +59,7 @@ instances:
         role: human
         workspace: owner
         agent_dir: agents/owner
-        model: openai/gpt-4.1-mini
+        model: openai/gpt-5.1
         integrations: [telegram]
         bindings:
           - match:
@@ -69,7 +69,7 @@ instances:
         role: usecase
         workspace: research
         agent_dir: agents/research
-        model: openai/gpt-4.1-mini
+        model: openai/gpt-5.1
         integrations: [telegram]
         bindings:
           - match:

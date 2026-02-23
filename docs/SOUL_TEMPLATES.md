@@ -42,7 +42,7 @@ oco agent add \
   --role usecase \
   --account telegram:support \
   --integration telegram \
-  --model openai/gpt-4.1-mini \
+  --model openai/gpt-5.1 \
   --soul-template operations
 ```
 
