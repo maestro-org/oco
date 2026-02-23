@@ -1,0 +1,78 @@
+version: 1
+organization:
+  org_id: example-org
+  org_slug: example-org
+  display_name: Example Org
+defaults:
+  port_stride: 20
+  policy:
+    integrations:
+      allow:
+        - telegram
+      deny: []
+    skills:
+      allow: []
+      deny: []
+      allow_sources:
+        - bundled
+        - managed
+        - workspace
+      deny_sources: []
+    models:
+      allow_providers:
+        - openai
+        - anthropic
+      deny_providers: []
+      allow_models: []
+      deny_models: []
+instances:
+  - id: example-org-core-human
+    enabled: true
+    profile: human
+    host:
+      bind: 127.0.0.1
+      gateway_port: 20789
+    paths:
+      config_dir: ../orgs/example-org/instances/core-human/config
+      state_dir: ../orgs/example-org/instances/core-human/state
+      workspace_root: ../orgs/example-org/instances/core-human/workspaces
+      generated_dir: ../.generated/example-org-core-human
+    openclaw:
+      config_layers:
+        - ../templates/openclaw/org.base.json5
+        - ../templates/openclaw/profiles/human.base.json5
+        - ../orgs/example-org/instances/core-human/config/instance.overrides.example.json5
+      docker:
+        image: ghcr.io/openclaw/openclaw:latest
+        container_name: openclaw-example-org-core-human
+        restart: unless-stopped
+        environment:
+          OPENAI_API_KEY: ${EXAMPLE_ORG_OPENAI_API_KEY}
+          ANTHROPIC_API_KEY: ${EXAMPLE_ORG_ANTHROPIC_API_KEY}
+    policy:
+      integrations:
+        allow:
+          - telegram
+      models:
+        allow_providers:
+          - openai
+          - anthropic
+    channels:
+      telegram:
+        accounts:
+          owner: {}
+    agents:
+      - id: owner
+        name: Org Owner
+        role: human
+        workspace: owner
+        agent_dir: agents/owner
+        model: openai/gpt-5.1
+        integrations:
+          - telegram
+        skill_sources:
+          - bundled
+        bindings:
+          - match:
+              channel: telegram
+              accountId: owner

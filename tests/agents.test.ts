@@ -21,7 +21,7 @@ describe('agents', () => {
       ['telegram:qa_bot'],
       ['telegram'],
       ['qa-review'],
-      'openai/gpt-4.1-mini',
+      'openai/gpt-5.1',
     );
 
     const agents = listAgents(instance);

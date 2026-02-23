@@ -5,7 +5,7 @@ if [[ "$#" -lt 4 ]]; then
   cat >&2 <<USAGE
 Usage: $0 <instance-id> <agent-id> <role> <channel:accountId> [model]
 Example:
-  $0 core-human procurement usecase telegram:procurement openai/gpt-4.1-mini
+  $0 core-human procurement usecase telegram:procurement openai/gpt-5.1
 USAGE
   exit 1
 fi
