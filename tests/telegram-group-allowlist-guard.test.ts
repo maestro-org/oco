@@ -1,13 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import registerGuardPlugin from '../instances/core-human/config/extensions/telegram-group-allowlist-guard/index';
 
-type HookName = 'message_received' | 'message_sending';
+type HookName = 'message_received' | 'message_sending' | 'before_tool_call';
 type HookHandler = (event: Record<string, unknown>, ctx: Record<string, unknown>) => unknown;
 
 function createHarness(pluginConfig?: Record<string, unknown>) {
   const hooks: Record<HookName, HookHandler[]> = {
     message_received: [],
     message_sending: [],
+    before_tool_call: [],
   };
 
   const api = {
@@ -41,6 +42,7 @@ function createHarness(pluginConfig?: Record<string, unknown>) {
   return {
     received: hooks.message_received[0],
     sending: hooks.message_sending[0],
+    beforeToolCall: hooks.before_tool_call[0],
   };
 }
 
@@ -281,6 +283,97 @@ describe('telegram-group-allowlist-guard', () => {
     );
 
     expect(result).toEqual({ cancel: true });
+  });
+
+  test('blocks tool execution when latest group sender is not allowlisted', async () => {
+    const { received, beforeToolCall } = createHarness({
+      enabledAccounts: ['primary_bot'],
+    });
+
+    await received(
+      {
+        from: 'telegram:group:-5114267406',
+        metadata: {
+          to: 'telegram:-5114267406',
+          senderId: '9999999999',
+        },
+      },
+      {
+        channelId: 'telegram',
+        accountId: 'primary_bot',
+      },
+    );
+
+    const result = await beforeToolCall(
+      {
+        toolName: 'web_search',
+        params: { query: 'latest updates' },
+      },
+      {
+        toolName: 'web_search',
+        sessionKey: 'agent:primary_bot:telegram:group:-5114267406',
+      },
+    );
+
+    expect(result).toEqual({
+      block: true,
+      blockReason: 'tool execution blocked: triggering sender is not allowlisted',
+    });
+  });
+
+  test('allows tool execution when latest group sender is allowlisted', async () => {
+    const { received, beforeToolCall } = createHarness({
+      enabledAccounts: ['primary_bot'],
+    });
+
+    await received(
+      {
+        from: 'telegram:group:-5114267406',
+        metadata: {
+          to: 'telegram:-5114267406',
+          senderId: '2222222222',
+        },
+      },
+      {
+        channelId: 'telegram',
+        accountId: 'primary_bot',
+      },
+    );
+
+    const result = await beforeToolCall(
+      {
+        toolName: 'web_search',
+        params: { query: 'latest updates' },
+      },
+      {
+        toolName: 'web_search',
+        sessionKey: 'agent:primary_bot:telegram:group:-5114267406',
+      },
+    );
+
+    expect(result).toBe(undefined);
+  });
+
+  test('fails closed for tool execution when no recent sender context exists', async () => {
+    const { beforeToolCall } = createHarness({
+      enabledAccounts: ['primary_bot'],
+    });
+
+    const result = await beforeToolCall(
+      {
+        toolName: 'web_search',
+        params: { query: 'latest updates' },
+      },
+      {
+        toolName: 'web_search',
+        sessionKey: 'agent:primary_bot:telegram:group:-600',
+      },
+    );
+
+    expect(result).toEqual({
+      block: true,
+      blockReason: 'tool execution blocked: missing recent sender context',
+    });
   });
 
   test('cancels reasoning-only outbound payloads', async () => {

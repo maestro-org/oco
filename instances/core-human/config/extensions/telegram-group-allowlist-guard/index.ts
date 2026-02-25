@@ -6,6 +6,8 @@ type GuardPluginConfig = {
 };
 
 type LastInboundSender = {
+  accountId: string;
+  toTarget: string;
   senderId?: string;
   timestampMs: number;
   isGroup: boolean;
@@ -14,6 +16,12 @@ type LastInboundSender = {
 type ParsedTelegramTarget = {
   kind: "group" | "direct" | "unknown";
   id: string;
+};
+
+type ParsedTelegramSession = {
+  kind: "group" | "direct" | "unknown";
+  accountId?: string;
+  toTarget?: string;
 };
 
 const DEFAULT_MAX_SENDER_AGE_MS = 5 * 60 * 1000;
@@ -102,6 +110,40 @@ function parseTelegramTarget(rawTarget: string): ParsedTelegramTarget {
   };
 }
 
+function canonicalConversationTarget(rawTarget: string): string {
+  const parsed = parseTelegramTarget(rawTarget);
+  if (parsed.kind === "group" || parsed.kind === "direct") {
+    return `telegram:${parsed.id}`;
+  }
+  return rawTarget.trim().toLowerCase();
+}
+
+function parseTelegramSessionKey(sessionKey: string): ParsedTelegramSession {
+  const tokens = sessionKey.trim().toLowerCase().split(":");
+  const telegramIndex = tokens.indexOf("telegram");
+  if (telegramIndex < 0) {
+    return { kind: "unknown" };
+  }
+
+  const suffix = tokens.slice(telegramIndex + 1);
+  if (suffix.length >= 2 && (suffix[0] === "group" || suffix[0] === "direct")) {
+    return {
+      kind: suffix[0],
+      toTarget: `telegram:${suffix[1]}`,
+    };
+  }
+
+  if (suffix.length >= 3 && (suffix[1] === "group" || suffix[1] === "direct")) {
+    return {
+      kind: suffix[1],
+      accountId: suffix[0],
+      toTarget: `telegram:${suffix[2]}`,
+    };
+  }
+
+  return { kind: "unknown" };
+}
+
 function extractSenderId(metadata: Record<string, unknown> | undefined, from?: string): string | undefined {
   const fromMetadata = normalizeId(metadata?.senderId);
   if (fromMetadata) {
@@ -121,6 +163,40 @@ function extractSenderId(metadata: Record<string, unknown> | undefined, from?: s
 
 function makeConversationKey(accountId: string, toTarget: string): string {
   return `${accountId.trim().toLowerCase()}::${toTarget.trim().toLowerCase()}`;
+}
+
+function findLatestInboundForTarget(
+  toTarget: string,
+  maxAgeMs: number,
+  accountId?: string,
+): LastInboundSender | undefined {
+  const normalizedTarget = toTarget.trim().toLowerCase();
+  const now = Date.now();
+
+  if (accountId) {
+    const exact = lastInboundByConversation.get(makeConversationKey(accountId, normalizedTarget));
+    if (exact && now - exact.timestampMs <= maxAgeMs) {
+      return exact;
+    }
+  }
+
+  const suffix = `::${normalizedTarget}`;
+  let latest: LastInboundSender | undefined;
+  for (const [key, value] of lastInboundByConversation.entries()) {
+    if (accountId && !key.startsWith(`${accountId.trim().toLowerCase()}::`)) {
+      continue;
+    }
+    if (!key.endsWith(suffix)) {
+      continue;
+    }
+    if (now - value.timestampMs > maxAgeMs) {
+      continue;
+    }
+    if (!latest || value.timestampMs > latest.timestampMs) {
+      latest = value;
+    }
+  }
+  return latest;
 }
 
 function isReasoningOnlyMessage(raw: string): boolean {
@@ -208,6 +284,13 @@ function isAccountEnabled(accountId: string, enabledAccounts: Set<string>): bool
   return enabledAccounts.has(accountId.trim().toLowerCase());
 }
 
+function resolveDefaultEnabledAccount(enabledAccounts: Set<string>): string | undefined {
+  if (enabledAccounts.size !== 1) {
+    return;
+  }
+  return enabledAccounts.values().next().value as string;
+}
+
 export default function register(api: OpenClawPluginApi): void {
   const pluginConfig = (api.pluginConfig ?? {}) as GuardPluginConfig;
   const enabledAccounts = new Set(
@@ -228,22 +311,71 @@ export default function register(api: OpenClawPluginApi): void {
     }
 
     const metadata = asRecord(event.metadata);
-    const toTarget = asNonEmptyString(metadata?.to) ?? asNonEmptyString(ctx.conversationId);
-    if (!toTarget) {
+    const toTargetRaw = asNonEmptyString(metadata?.to) ?? asNonEmptyString(ctx.conversationId);
+    if (!toTargetRaw) {
       return;
     }
+    const toTarget = canonicalConversationTarget(toTargetRaw);
 
-    const parsedTo = parseTelegramTarget(toTarget);
+    const parsedTo = parseTelegramTarget(toTargetRaw);
     const parsedFrom = parseTelegramTarget(event.from ?? "");
     const isGroup = parsedTo.kind === "group" || parsedFrom.kind === "group";
     const senderId = extractSenderId(metadata, event.from);
 
     cleanupExpiredContext(maxSenderAgeMs);
     lastInboundByConversation.set(makeConversationKey(accountId, toTarget), {
+      accountId: accountId.trim().toLowerCase(),
+      toTarget,
       senderId,
       timestampMs: Date.now(),
       isGroup,
     });
+  });
+
+  api.on("before_tool_call", (_event, ctx) => {
+    const sessionKey = asNonEmptyString(ctx.sessionKey);
+    if (!sessionKey) {
+      return;
+    }
+
+    const parsedSession = parseTelegramSessionKey(sessionKey);
+    if (!parsedSession.toTarget || parsedSession.kind === "unknown") {
+      return;
+    }
+
+    const parsedTarget = parseTelegramTarget(parsedSession.toTarget);
+    if (parsedTarget.kind === "unknown") {
+      return;
+    }
+
+    cleanupExpiredContext(maxSenderAgeMs);
+    const cached = findLatestInboundForTarget(parsedSession.toTarget, maxSenderAgeMs, parsedSession.accountId);
+    const accountId =
+      parsedSession.accountId ?? cached?.accountId ?? resolveDefaultEnabledAccount(enabledAccounts);
+    if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
+      return;
+    }
+
+    if (!cached || !cached.senderId) {
+      api.logger.info?.(
+        `telegram-group-allowlist-guard: blocked tool call in ${sessionKey} (missing sender context)`,
+      );
+      return {
+        block: true,
+        blockReason: "tool execution blocked: missing recent sender context",
+      };
+    }
+
+    const allowlist = resolveTelegramAllowlist(api.config, accountId, parsedTarget.id);
+    if (!allowlist.has(cached.senderId)) {
+      api.logger.info?.(
+        `telegram-group-allowlist-guard: blocked tool call in ${sessionKey} (sender ${cached.senderId} not allowlisted)`,
+      );
+      return {
+        block: true,
+        blockReason: "tool execution blocked: triggering sender is not allowlisted",
+      };
+    }
   });
 
   api.on("message_sending", (event, ctx) => {
@@ -272,15 +404,16 @@ export default function register(api: OpenClawPluginApi): void {
     }
     const hasSanitizedContentOverride = sanitizedContent.length > 0 && sanitizedContent !== rawContent.trim();
 
-    const toTarget = asNonEmptyString(event.to);
-    if (!toTarget) {
+    const toTargetRaw = asNonEmptyString(event.to);
+    if (!toTargetRaw) {
       if (hasSanitizedContentOverride) {
         return { content: sanitizedContent };
       }
       return;
     }
+    const toTarget = canonicalConversationTarget(toTargetRaw);
 
-    const parsedTo = parseTelegramTarget(toTarget);
+    const parsedTo = parseTelegramTarget(toTargetRaw);
     if (parsedTo.kind !== "group") {
       if (hasSanitizedContentOverride) {
         return { content: sanitizedContent };

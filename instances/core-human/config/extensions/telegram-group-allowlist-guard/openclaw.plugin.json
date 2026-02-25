@@ -1,7 +1,7 @@
 {
   "id": "telegram-group-allowlist-guard",
   "name": "Telegram Group Allowlist Guard",
-  "description": "Allows group read/context ingestion but blocks replies unless the triggering sender is allowlisted.",
+  "description": "Allows group read/context ingestion, blocks replies for non-allowlisted senders, and blocks tool execution unless the latest triggering sender is allowlisted.",
   "channels": ["telegram"],
   "configSchema": {
     "type": "object",
