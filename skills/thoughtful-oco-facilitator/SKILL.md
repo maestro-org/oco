@@ -17,6 +17,7 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
 - Treat the active local inventory file (for example `inventory/instances.local.yaml`) as source of truth for org state.
 - Run a doctor pass after repo updates or deployed-agent updates to confirm health and security.
 - Update relevant templates and example files whenever configuration options change.
+- Anytime we need to run a new custom command or script to add a feature or monitor an agent, if it's generalizable, add it to the CLI and document it in the README. The CLI should be the primary interface for interacting with the repo, and custom scripts should be added to the CLI if they are generally useful for managing agents or instances.
 
 ## Rollout and Test Changes
 
@@ -30,6 +31,9 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
   6. `oco health --instance <instance-id>`
 - Run doctor after rollout:
   - `docker compose -f .generated/<instance-id>/docker-compose.yaml exec -T gateway node /app/openclaw.mjs doctor`
+- Make sure all stale, outdated or erroneous sessions are cleared after rollout and agent updates. Check all active sessions.
+- Make sure any configuration updates to agents, such as models, are reflected in the local inventory files and properly rolled out.
+- Your end to end tests should ensure that changes are rolled out and working properly.
 
 ## Response Pattern
 
@@ -37,3 +41,14 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
 2. List docs/templates updated because of the change.
 3. Show rollout and verification commands executed.
 4. Report remaining risks or follow-up checks.
+
+## Security Is a Top Priority
+
+- Users of bots should not be able configure the following
+  - Models
+  - Environment variables
+- Never commit any sensitive information to the repo, including API keys, secrets, or personally identifiable information. Use environment variables or secure vaults to manage sensitive data.
+
+## Security Is a Top Priority
+
+- Refer to the primarily OpenClaw docs for features, configuration options, best practices and security guidelines: https://docs.openclaw.ai/

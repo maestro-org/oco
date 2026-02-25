@@ -10,6 +10,8 @@
 ## Required Credentials
 
 - `NOTION_API_KEY` is expected to be preconfigured.
+- Credential source is environment variable only: `NOTION_API_KEY`.
+- Do not use or reference `~/.config/notion/api_key` in this setup.
 - Do not ask for a new key before testing connectivity.
 
 ## Connectivity Check
@@ -52,3 +54,7 @@ curl -sS -X PATCH "https://api.notion.com/v1/blocks/<BLOCK_ID>/children" -H "Aut
 - Do not use browser scraping for `notion.so` content when API access exists.
 - Confirm parent page/database target before writes.
 - If `404 object_not_found`, request sharing with the integration.
+- If `401 unauthorized`, then and only then ask for a credential update.
+- Use `Authorization` header with env expansion:
+  - `-H "Authorization: Bearer $NOTION_API_KEY"`
+  - Do not wrap this header in single quotes.
