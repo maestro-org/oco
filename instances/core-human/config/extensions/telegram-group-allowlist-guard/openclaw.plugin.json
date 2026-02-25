@@ -1,0 +1,29 @@
+{
+  "id": "telegram-group-allowlist-guard",
+  "name": "Telegram Group Allowlist Guard",
+  "description": "Allows group read/context ingestion, blocks replies for non-allowlisted senders, and blocks tool execution unless the latest triggering sender is allowlisted.",
+  "channels": ["telegram"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabledAccounts": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "maxSenderAgeMs": {
+        "type": "number"
+      }
+    }
+  },
+  "uiHints": {
+    "enabledAccounts": {
+      "label": "Enabled Accounts",
+      "help": "Restrict guard to selected telegram account ids. Empty means all accounts."
+    },
+    "maxSenderAgeMs": {
+      "label": "Sender Cache TTL",
+      "help": "Maximum age in milliseconds for last inbound sender context."
+    }
+  }
+}

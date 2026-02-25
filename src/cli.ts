@@ -26,7 +26,7 @@ import {
   updateInstance,
   validateOnly,
 } from './workflow';
-import { healOpenAiReasoningSessions } from './sessions';
+import { healOpenAiReasoningSessions, resetSessions } from './sessions';
 import { applySoulTemplate, listSoulTemplates } from './soul';
 import { applyToolsTemplate, listToolsTemplates } from './tools';
 
@@ -202,6 +202,17 @@ function run(): void {
     });
 
   const session = program.command('session').description('Session maintenance');
+
+  session
+    .command('reset')
+    .description('Inspect and optionally clear local agent session indexes and session jsonl files')
+    .requiredOption('--instance <id>', 'Instance ID')
+    .option('--agent-id <id>', 'Filter to a single agent')
+    .option('--apply', 'Back up and delete session state for selected agents', false)
+    .action((options: { instance: string; agentId?: string; apply: boolean }) => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      printJson(resetSessions(invFile, options.instance, options.apply, options.agentId));
+    });
 
   session
     .command('heal-openai')

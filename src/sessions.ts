@@ -1,5 +1,5 @@
-import { copyFileSync, existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
 import { CONTAINER_STATE_DIR, buildInstanceContext } from './context';
 import { ValidationError } from './errors';
 import { findInstance } from './inventory';
@@ -8,6 +8,7 @@ import { loadAndValidate } from './workflow';
 
 const OPENAI_REASONING_CHAIN_ERROR_RE =
   /400 Item 'rs_[^']+' of type 'reasoning' was provided without its required following item\./;
+const SESSION_FILE_RE = /\.jsonl(?:\..+)?$/;
 
 export function isOpenAiReasoningChainError(message: string): boolean {
   return OPENAI_REASONING_CHAIN_ERROR_RE.test(message);
@@ -54,6 +55,153 @@ export interface BrokenSessionCandidate {
   session_id: string;
   session_file: string;
   trailing_error_count: number;
+}
+
+export interface SessionDirectoryResetResult {
+  sessions_dir: string;
+  index_path: string;
+  session_keys: number;
+  session_files: number;
+  applied: boolean;
+  backup_dir: string | null;
+  backed_up_files: number;
+  cleared_session_keys: number;
+  deleted_session_files: number;
+}
+
+export interface SessionResetAgentResult extends SessionDirectoryResetResult {
+  agent: string;
+  missing_sessions_dir: boolean;
+}
+
+export function resetSessions(
+  invFile: string | undefined,
+  instanceId: string,
+  apply = false,
+  agentId?: string,
+): Record<string, unknown> {
+  const { invPath, inventory } = loadAndValidate(invFile);
+  const instance = findInstance(inventory, instanceId);
+  const context = buildInstanceContext(instance, invPath);
+  const agentsRoot = join(context.stateDir, 'agents');
+
+  if (!existsSync(agentsRoot)) {
+    throw new ValidationError(`agent state directory not found: ${agentsRoot}`);
+  }
+
+  const agentNames = collectAgentNames(agentsRoot, agentId);
+  const backupTagBase = formatUtcTag();
+  const agents: SessionResetAgentResult[] = [];
+
+  let totalSessionKeys = 0;
+  let totalSessionFiles = 0;
+  let totalClearedSessionKeys = 0;
+  let totalDeletedSessionFiles = 0;
+  let updatedAgents = 0;
+
+  for (const name of agentNames) {
+    const sessionsDir = join(agentsRoot, name, 'sessions');
+    const indexPath = join(sessionsDir, 'sessions.json');
+    if (!existsSync(sessionsDir)) {
+      agents.push({
+        agent: name,
+        sessions_dir: sessionsDir,
+        index_path: indexPath,
+        session_keys: 0,
+        session_files: 0,
+        applied: false,
+        backup_dir: null,
+        backed_up_files: 0,
+        cleared_session_keys: 0,
+        deleted_session_files: 0,
+        missing_sessions_dir: true,
+      });
+      continue;
+    }
+
+    const result = resetSessionDirectory(sessionsDir, apply, `${backupTagBase}-${name}`);
+    agents.push({
+      agent: name,
+      ...result,
+      missing_sessions_dir: false,
+    });
+
+    totalSessionKeys += result.session_keys;
+    totalSessionFiles += result.session_files;
+    totalClearedSessionKeys += result.cleared_session_keys;
+    totalDeletedSessionFiles += result.deleted_session_files;
+    if (result.applied) {
+      updatedAgents += 1;
+    }
+  }
+
+  return {
+    instance: instanceId,
+    apply,
+    state_dir: context.stateDir,
+    agent_filter: agentId ?? null,
+    scanned_agents: agentNames.length,
+    updated_agents: apply ? updatedAgents : 0,
+    found_session_keys: totalSessionKeys,
+    found_session_files: totalSessionFiles,
+    cleared_session_keys: apply ? totalClearedSessionKeys : 0,
+    deleted_session_files: apply ? totalDeletedSessionFiles : 0,
+    agents,
+  };
+}
+
+export function resetSessionDirectory(
+  sessionsDir: string,
+  apply = false,
+  backupTag = formatUtcTag(),
+): SessionDirectoryResetResult {
+  const indexPath = join(sessionsDir, 'sessions.json');
+  const indexExists = existsSync(indexPath);
+  const index = indexExists ? parseSessionIndex(indexPath) : {};
+  const sessionKeys = Object.keys(index).length;
+  const sessionFiles = collectSessionFiles(sessionsDir);
+
+  let backupDir: string | null = null;
+  let backedUpFiles = 0;
+  let clearedSessionKeys = 0;
+  let deletedSessionFiles = 0;
+  let applied = false;
+
+  if (apply && (indexExists || sessionFiles.length > 0)) {
+    backupDir = resolveUniqueBackupDir(sessionsDir, backupTag);
+    mkdirSync(backupDir, { recursive: true });
+
+    if (indexExists) {
+      copyFileSync(indexPath, join(backupDir, 'sessions.json'));
+      backedUpFiles += 1;
+    }
+
+    for (const filePath of sessionFiles) {
+      copyFileSync(filePath, join(backupDir, basename(filePath)));
+      backedUpFiles += 1;
+    }
+
+    writeFileSync(indexPath, '{}\n', 'utf-8');
+    for (const filePath of sessionFiles) {
+      rmSync(filePath, { force: true });
+      deletedSessionFiles += 1;
+    }
+
+    clearedSessionKeys = sessionKeys;
+    applied = true;
+  }
+
+  return {
+    sessions_dir: sessionsDir,
+    index_path: indexPath,
+    session_keys: sessionKeys,
+    session_files: sessionFiles.length,
+    applied,
+    backup_dir: backupDir,
+    backed_up_files: backedUpFiles,
+    cleared_session_keys: clearedSessionKeys,
+    deleted_session_files: deletedSessionFiles,
+  };
 }
 
 export function healOpenAiReasoningSessions(
@@ -176,6 +324,43 @@ function parseSessionIndex(path: string): Record<string, unknown> {
   }
 
   return parsed;
+}
+
+function collectSessionFiles(sessionsDir: string): string[] {
+  if (!existsSync(sessionsDir)) {
+    return [];
+  }
+
+  return readdirSync(sessionsDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && SESSION_FILE_RE.test(entry.name))
+    .map((entry) => join(sessionsDir, entry.name))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function resolveUniqueBackupDir(sessionsDir: string, backupTag: string): string {
+  const base = join(sessionsDir, `reset-backup-${backupTag}`);
+  if (!existsSync(base)) {
+    return base;
+  }
+
+  let suffix = 2;
+  while (true) {
+    const candidate = `${base}-${suffix}`;
+    if (!existsSync(candidate)) {
+      return candidate;
+    }
+    suffix += 1;
+  }
+}
+
+function formatUtcTag(date = new Date()): string {
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const hours = String(date.getUTCHours()).padStart(2, '0');
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+  const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+  return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
 }
 
 function resolveLocalSessionPath(stateDir: string, sessionsDir: string, sessionFile: string): string {
