@@ -5,6 +5,8 @@
       contextPruning: {
         mode: "off",
       },
+      // Default to deeper reasoning for GPT-5.2-family agents.
+      thinkingDefault: "high",
     },
   },
   channels: {
@@ -17,8 +19,20 @@
         },
         drichardson: {
           botToken: "${TELEGRAM_BOT_TOKEN_DRICHARDSON}",
+          // Prevent in-chat commands (for example /model) from silently drifting runtime config.
+          configWrites: false,
         }
       },
     },
+  },
+  plugins: {
+    entries: {
+      telegram: {
+        enabled: true,
+      },
+    },
+  },
+  gateway: {
+    mode: "local",
   },
 }

@@ -6,7 +6,7 @@
 
 `oco` manages OpenClaw organizations with inventory-driven configuration, isolated runtime boundaries, and repeatable deployment workflows.
 
-## What You Get
+## Features
 - Multi-instance orchestration from a single inventory.
 - Strict isolation across config/state/workspaces per instance.
 - Policy guardrails for models, skills, and integrations.
@@ -139,7 +139,7 @@ Detailed rollout: `docs/E2E_OCO_DISCORD_FUNCTIONAL_AGENTS.md`
 ## Documentation
 Comprehensive documentation is available in `docs/`, including deployment steps, usage examples, and reusable templates.
 
-## Open Source Safety
+## Security Best Practices
 - Keep secrets in local `.env` only.
 - Do not commit runtime state or rendered configs.
 - Run before pushing:
