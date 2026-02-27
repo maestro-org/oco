@@ -1,0 +1,37 @@
+{
+  "id": "transcript-size-guard",
+  "name": "Transcript Size Guard",
+  "description": "Truncates oversized tool result payloads before they are persisted to session transcripts.",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "maxChars": {
+        "type": "number"
+      },
+      "headChars": {
+        "type": "number"
+      },
+      "tailChars": {
+        "type": "number"
+      },
+      "truncateDetails": {
+        "type": "boolean"
+      },
+      "tools": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    }
+  },
+  "uiHints": {
+    "maxChars": {
+      "label": "Max Characters",
+      "help": "Maximum length for persisted tool result strings before truncation."
+    },
+    "tools": {
+      "label": "Tool Allowlist",
+      "help": "If set, only these tool names are truncated."
+    }
+  }
+}

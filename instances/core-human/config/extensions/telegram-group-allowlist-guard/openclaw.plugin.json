@@ -13,6 +13,15 @@
       },
       "maxSenderAgeMs": {
         "type": "number"
+      },
+      "awarenessSenderAgeMs": {
+        "type": "number"
+      },
+      "awarenessMaxGroups": {
+        "type": "number"
+      },
+      "stateAgentsDir": {
+        "type": "string"
       }
     }
   },
@@ -24,6 +33,18 @@
     "maxSenderAgeMs": {
       "label": "Sender Cache TTL",
       "help": "Maximum age in milliseconds for last inbound sender context."
+    },
+    "awarenessSenderAgeMs": {
+      "label": "Awareness TTL",
+      "help": "Maximum age in milliseconds for group awareness snippets in DM context."
+    },
+    "awarenessMaxGroups": {
+      "label": "Awareness Group Limit",
+      "help": "Maximum number of recent groups included in DM awareness context."
+    },
+    "stateAgentsDir": {
+      "label": "State Agents Directory",
+      "help": "Path to agent session indexes used to hydrate known groups."
     }
   }
 }
