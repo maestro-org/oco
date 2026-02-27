@@ -14,6 +14,7 @@ import {
 } from './inventory';
 import { effectivePolicySummary, listSupportedIntegrations, validatePolicies } from './policy';
 import {
+  deploymentTargetForInstance,
   generateComposeForInstance,
   healthInstance,
   preflightInstance,
@@ -32,6 +33,27 @@ import { applyToolsTemplate, listToolsTemplates } from './tools';
 
 function printJson(payload: unknown): void {
   process.stdout.write(`${JSON.stringify(payload, null, 2)}\n`);
+}
+
+function registerRuntimeCommands(
+  command: Command,
+  inventoryPathProvider: () => string | undefined,
+): void {
+  command
+    .command('generate')
+    .requiredOption('--instance <id>', 'Instance ID')
+    .action((options: { instance: string }) => {
+      printJson(generateComposeForInstance(inventoryPathProvider(), options.instance));
+    });
+
+  for (const action of ['up', 'down', 'restart', 'ps', 'pull', 'logs']) {
+    command
+      .command(action)
+      .requiredOption('--instance <id>', 'Instance ID')
+      .action((options: { instance: string }) => {
+        printJson(runCompose(inventoryPathProvider(), options.instance, action));
+      });
+  }
 }
 
 function run(): void {
@@ -150,32 +172,32 @@ function run(): void {
 
   program
     .command('health')
-    .description('Check runtime health for one instance')
+    .description('Check runtime health for one instance (docker or kubernetes)')
     .requiredOption('--instance <id>', 'Instance ID')
     .action((options: { instance: string }) => {
       const { inventory: invFile } = program.opts<{ inventory?: string }>();
       printJson(healthInstance(invFile, options.instance));
     });
 
-  const compose = program.command('compose').description('Docker compose actions');
+  const compose = program
+    .command('compose')
+    .description('Runtime actions (provider-aware: docker compose or kubernetes)');
 
-  compose
-    .command('generate')
+  registerRuntimeCommands(compose, () => program.opts<{ inventory?: string }>().inventory);
+
+  const runtime = program
+    .command('runtime')
+    .description('Runtime actions (provider-aware: docker compose or kubernetes)');
+  registerRuntimeCommands(runtime, () => program.opts<{ inventory?: string }>().inventory);
+
+  const deployment = program.command('deployment').description('Deployment target resolution');
+  deployment
+    .command('target')
     .requiredOption('--instance <id>', 'Instance ID')
     .action((options: { instance: string }) => {
       const { inventory: invFile } = program.opts<{ inventory?: string }>();
-      printJson(generateComposeForInstance(invFile, options.instance));
+      printJson(deploymentTargetForInstance(invFile, options.instance));
     });
-
-  for (const action of ['up', 'down', 'restart', 'ps', 'pull', 'logs']) {
-    compose
-      .command(action)
-      .requiredOption('--instance <id>', 'Instance ID')
-      .action((options: { instance: string }) => {
-        const { inventory: invFile } = program.opts<{ inventory?: string }>();
-        printJson(runCompose(invFile, options.instance, action));
-      });
-  }
 
   const pairing = program.command('pairing').description('Pairing workflow helpers');
 

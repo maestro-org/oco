@@ -3,7 +3,7 @@
 This guide shows a complete Telegram deployment flow for a single instance with per-account routing.
 
 ## 1. Prerequisites
-- Docker + Docker Compose
+- Docker + Docker Compose (`docker` provider) or `kubectl` with cluster access (`kubernetes` provider)
 - `oco` in PATH
 - Telegram bots created in `@BotFather`
 
@@ -134,8 +134,8 @@ oco validate
 oco policy validate
 oco preflight --instance core-human
 oco render --instance core-human
-oco compose generate --instance core-human
-oco compose up --instance core-human
+oco runtime generate --instance core-human
+oco runtime up --instance core-human
 oco health --instance core-human
 ```
 

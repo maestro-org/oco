@@ -160,4 +160,43 @@ describe('inventory', () => {
       rmSync(root, { recursive: true, force: true });
     }
   });
+
+  test('validateInventory rejects unsupported org deployment provider', () => {
+    const { root, invPath } = setupValidInventoryRoot();
+    try {
+      const inventory = loadInventoryFile(invPath);
+      inventory.organization = {
+        deployment: {
+          provider: 'nomad',
+        },
+      };
+
+      expect(() => validateInventory(inventory, invPath)).toThrow(
+        'organization.deployment.provider must be "docker" or "kubernetes"',
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('validateInventory rejects kubernetes node_port without NodePort service type', () => {
+    const { root, invPath } = setupValidInventoryRoot();
+    try {
+      const inventory = loadInventoryFile(invPath);
+      const instance = (inventory.instances as Array<Record<string, unknown>>)[0];
+      instance.openclaw = {
+        ...(instance.openclaw as Record<string, unknown>),
+        kubernetes: {
+          node_port: 30080,
+          service_type: 'ClusterIP',
+        },
+      };
+
+      expect(() => validateInventory(inventory, invPath)).toThrow(
+        'openclaw.kubernetes.node_port is only valid when service_type is NodePort',
+      );
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

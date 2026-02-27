@@ -6,8 +6,8 @@ if [[ "$#" -lt 2 ]]; then
 Usage: $0 <org> <oco-args...>
 Examples:
   $0 acme validate
-  $0 acme compose ps --instance core-human
-  $0 beta-org compose up --instance core-human
+  $0 acme runtime ps --instance core-human
+  $0 beta-org runtime up --instance core-human
 USAGE
   exit 1
 fi

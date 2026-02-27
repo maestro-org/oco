@@ -1,18 +1,19 @@
-# oco: OpenClaw Orchestrator
+# OpenClaw Orchestrator
 
 <p align="left">
-  <img src="media/logo.png" alt="oco logo" width="360" />
+  <img src="media/logo.png" alt="oco logo" width="400" />
 </p>
 
-`oco` manages OpenClaw organizations with inventory-driven configuration, isolated runtime boundaries, and repeatable deployment workflows.
+Manages OpenClaw organizations with inventory-driven configuration, isolated runtime boundaries, and repeatable deployment workflows.
 
 ## Features
 - Multi-instance orchestration from a single inventory.
 - Strict isolation across config/state/workspaces per instance.
+- Org-level deployment provider selection (`docker` or `kubernetes`) with env overrides.
 - Policy guardrails for models, skills, and integrations.
 - Agent lifecycle commands (add/remove/list) with channel bindings.
 - Template workflows for `SOUL.md` and `TOOLS.md`.
-- Render/compose/deploy workflows with revision support.
+- Render/runtime/deploy workflows with revision support.
 
 ## Integrations
 - Channels: Telegram, Discord.
@@ -43,6 +44,7 @@ oco inventory init
 
 Edit `inventory/instances.local.yaml` (recommended) for:
 - organization metadata
+- organization deployment target (`organization.deployment.provider`)
 - instance ports and paths
 - channel accounts + agent bindings
 - policy allow/deny defaults
@@ -90,7 +92,31 @@ For multi-org isolation, keep secrets in separate files (for example `.env.acme`
 ORG_ENV_FILE=.env.acme ./scripts/org.sh acme validate
 ```
 
-### 4. Validate and Deploy
+### 4. Choose Deployment Target
+Set the org default in inventory:
+```yaml
+organization:
+  deployment:
+    provider: docker # or kubernetes
+    kubernetes:
+      namespace: default
+      # context omitted => current kubectl context
+```
+
+When Kubernetes names are omitted, `oco` defaults deployment/service/container names to `oco-<instance-id>`.
+
+Optional env overrides:
+- `OCO_DEPLOYMENT_PROVIDER=docker|kubernetes`
+- `OCO_KUBE_CONTEXT=<context>`
+- `OCO_KUBE_NAMESPACE=<namespace>`
+- `OCO_KUBECONFIG=<path>`
+
+Inspect the resolved target:
+```bash
+oco deployment target --instance core-human
+```
+
+### 5. Validate and Deploy
 ```bash
 oco validate
 oco policy validate
@@ -99,6 +125,8 @@ oco preflight --instance core-human
 ./scripts/deploy-instance.sh core-human
 oco health --instance core-human
 ```
+
+`oco compose ...` and `oco runtime ...` are provider-aware and automatically use Docker Compose or Kubernetes based on org config/env.
 
 ### 5. Manage Agents and Templates
 ```bash
@@ -124,7 +152,7 @@ oco tools apply --instance core-human --agent-id support --template operations -
 Run org-scoped commands with the helper script:
 ```bash
 ./scripts/org.sh <org> validate
-./scripts/org.sh <org> compose up --instance <instance-id>
+./scripts/org.sh <org> runtime up --instance <instance-id>
 ./scripts/org.sh <org> health --instance <instance-id>
 ```
 

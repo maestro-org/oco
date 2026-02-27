@@ -19,5 +19,5 @@ fi
 $CLI "${INV_ARGS[@]}" validate
 $CLI "${INV_ARGS[@]}" policy validate
 $CLI "${INV_ARGS[@]}" render --instance core-human
-$CLI "${INV_ARGS[@]}" compose generate --instance core-human
+$CLI "${INV_ARGS[@]}" runtime generate --instance core-human
 $CLI "${INV_ARGS[@]}" preflight --instance core-human

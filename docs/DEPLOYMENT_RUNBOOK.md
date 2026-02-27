@@ -5,7 +5,8 @@ This runbook covers a standard `oco` deployment for any organization.
 ## 1. Prerequisites
 - Node `25+`
 - Bun `1.3+`
-- Docker + Docker Compose
+- Docker + Docker Compose (for `docker` provider)
+- `kubectl` with cluster access (for `kubernetes` provider)
 
 ## 2. Install
 ```bash
@@ -30,6 +31,7 @@ oco inventory init
 
 Update `inventory/instances.local.yaml`:
 - organization metadata
+- organization deployment target (`organization.deployment.provider`)
 - instance ports and paths
 - account bindings
 - policy allowlists
@@ -40,6 +42,22 @@ Notes:
 - override with `--inventory <path>` or `OCO_INVENTORY_PATH`.
 - For isolated multi-org operations, use `inventory/<org>.instances.local.yaml` or `inventory/<org>.instances.yaml`.
 - See `inventory/org.instances.example.yaml` for a reusable pattern.
+
+Example org deployment config:
+```yaml
+organization:
+  deployment:
+    provider: docker # or kubernetes
+    kubernetes:
+      namespace: default
+      # context omitted => use current kubectl context
+```
+
+Optional runtime overrides:
+- `OCO_DEPLOYMENT_PROVIDER=docker|kubernetes`
+- `OCO_KUBE_CONTEXT=<context>`
+- `OCO_KUBE_NAMESPACE=<namespace>`
+- `OCO_KUBECONFIG=<path>`
 
 ## 4. Configure Secrets
 ```bash
@@ -68,6 +86,7 @@ ORG_ENV_FILE=.env.<org> ./scripts/org.sh <org> validate
 oco validate
 oco policy validate
 oco preflight --instance core-human
+oco deployment target --instance core-human
 ```
 
 ## 6. Deploy
@@ -79,8 +98,8 @@ Helper script:
 Manual equivalent:
 ```bash
 oco render --instance core-human
-oco compose generate --instance core-human
-oco compose up --instance core-human
+oco runtime generate --instance core-human
+oco runtime up --instance core-human
 oco health --instance core-human
 ```
 
@@ -91,7 +110,7 @@ For multi-instance functional deployments, deploy each target instance:
 
 For org-specific deployments:
 ```bash
-./scripts/org.sh <org> compose up --instance <instance-id>
+./scripts/org.sh <org> runtime up --instance <instance-id>
 ./scripts/org.sh <org> health --instance <instance-id>
 ```
 
@@ -110,7 +129,7 @@ oco agent add \
   --account telegram:procurement \
   --integration telegram \
   --model openai/gpt-5.1
-oco compose restart --instance core-human
+oco runtime restart --instance core-human
 ```
 
 Apply templates:

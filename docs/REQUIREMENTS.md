@@ -11,7 +11,7 @@ Each agent must have a distinct account identity and isolated runtime state.
 Organization identity (for example `org_id`, `org_slug`, `display_name`) must be configuration-driven and never hardcoded.
 
 ## 2. Product Goals
-1. Operate many OpenClaw agents across one or more Dockerized gateway instances.
+1. Operate many OpenClaw agents across Docker and Kubernetes gateway instances.
 2. Keep security boundaries explicit and enforceable by default.
 3. Make onboarding, updates, and decommissioning fast and repeatable.
 4. Support shared configuration templates with per-gateway and per-agent overrides.
@@ -19,7 +19,7 @@ Organization identity (for example `org_id`, `org_slug`, `display_name`) must be
 
 ## 3. Scope
 ### In scope
-- Multi-instance gateway orchestration via Docker Compose.
+- Multi-instance gateway orchestration via Docker Compose and Kubernetes.
 - Agent and account lifecycle management.
 - Config template layering and inheritance.
 - Integration cataloging and policy management.
@@ -64,8 +64,8 @@ Organization identity (for example `org_id`, `org_slug`, `display_name`) must be
   - Explicit sandbox and tool policy.
 
 ### Deployment model
-- All gateways run as Docker Compose projects.
-- Config and state persist on host volumes.
+- Gateways run on one of two org-selected providers: Docker Compose or Kubernetes.
+- Config and state persistence strategy depends on provider (host volumes, PVCs, or equivalent).
 - Secrets come from environment or secret store, not hardcoded in repo.
 
 ### Policy scope model
@@ -260,7 +260,7 @@ Required relations:
 Deliver:
 1. Inventory file/schema for instances and agents.
 2. Template renderer with `$include` layering.
-3. Docker Compose deployer for multi-instance gateways.
+3. Runtime deployers for Docker Compose and Kubernetes.
 4. Agent/account/binding lifecycle commands.
 5. Health checks and preflight validation.
 6. Update + rollback scripts.
