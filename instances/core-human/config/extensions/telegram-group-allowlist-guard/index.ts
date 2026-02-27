@@ -1,8 +1,13 @@
 import type { OpenClawConfig, OpenClawPluginApi } from "openclaw/plugin-sdk";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 type GuardPluginConfig = {
   enabledAccounts?: string[];
   maxSenderAgeMs?: number;
+  awarenessSenderAgeMs?: number;
+  awarenessMaxGroups?: number;
+  stateAgentsDir?: string;
 };
 
 type LastInboundSender = {
@@ -13,6 +18,22 @@ type LastInboundSender = {
   isGroup: boolean;
 };
 
+type GroupAwareness = {
+  accountId: string;
+  groupId: string;
+  conversationTarget: string;
+  timestampMs: number;
+  senderId?: string;
+  conversationLabel?: string;
+  groupSubject?: string;
+  lastMessagePreview?: string;
+};
+
+type SessionIndexedGroup = {
+  groupId: string;
+  conversationLabel?: string;
+};
+
 type ParsedTelegramTarget = {
   kind: "group" | "direct" | "unknown";
   id: string;
@@ -20,12 +41,17 @@ type ParsedTelegramTarget = {
 
 type ParsedTelegramSession = {
   kind: "group" | "direct" | "unknown";
+  agentId?: string;
   accountId?: string;
   toTarget?: string;
 };
 
 const DEFAULT_MAX_SENDER_AGE_MS = 5 * 60 * 1000;
+const DEFAULT_AWARENESS_SENDER_AGE_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_AWARENESS_MAX_GROUPS = 8;
+const DEFAULT_STATE_AGENTS_DIR = "/var/lib/openclaw/state/agents";
 const lastInboundByConversation = new Map<string, LastInboundSender>();
+const groupAwarenessByConversation = new Map<string, GroupAwareness>();
 
 function asNonEmptyString(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -49,6 +75,55 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
     return;
   }
   return value as Record<string, unknown>;
+}
+
+function collectTextParts(value: unknown, out: string[], depth = 0): void {
+  if (depth > 4 || value == null) {
+    return;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed) {
+      out.push(trimmed);
+    }
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      collectTextParts(entry, out, depth + 1);
+    }
+    return;
+  }
+
+  const record = asRecord(value);
+  if (!record) {
+    return;
+  }
+
+  const textCandidates = ["text", "content", "body", "caption", "message"];
+  for (const key of textCandidates) {
+    if (!(key in record)) {
+      continue;
+    }
+    collectTextParts(record[key], out, depth + 1);
+  }
+}
+
+function extractTextPayload(content: unknown): string | undefined {
+  const direct = asNonEmptyString(content);
+  if (direct) {
+    return direct;
+  }
+
+  const parts: string[] = [];
+  collectTextParts(content, parts);
+  if (parts.length === 0) {
+    return;
+  }
+
+  return parts.join("\n");
 }
 
 function normalizeId(value: unknown): string | undefined {
@@ -120,9 +195,10 @@ function canonicalConversationTarget(rawTarget: string): string {
 
 function parseTelegramSessionKey(sessionKey: string): ParsedTelegramSession {
   const tokens = sessionKey.trim().toLowerCase().split(":");
+  const agentId = tokens.length >= 2 && tokens[0] === "agent" ? tokens[1] : undefined;
   const telegramIndex = tokens.indexOf("telegram");
   if (telegramIndex < 0) {
-    return { kind: "unknown" };
+    return { kind: "unknown", agentId };
   }
 
   const suffix = tokens.slice(telegramIndex + 1);
@@ -130,18 +206,20 @@ function parseTelegramSessionKey(sessionKey: string): ParsedTelegramSession {
     return {
       kind: suffix[0],
       toTarget: `telegram:${suffix[1]}`,
+      agentId,
     };
   }
 
   if (suffix.length >= 3 && (suffix[1] === "group" || suffix[1] === "direct")) {
     return {
       kind: suffix[1],
+      agentId,
       accountId: suffix[0],
       toTarget: `telegram:${suffix[2]}`,
     };
   }
 
-  return { kind: "unknown" };
+  return { kind: "unknown", agentId };
 }
 
 function extractSenderId(metadata: Record<string, unknown> | undefined, from?: string): string | undefined {
@@ -235,6 +313,205 @@ function cleanupExpiredContext(maxAgeMs: number): void {
   }
 }
 
+function cleanupExpiredGroupAwareness(maxAgeMs: number): void {
+  const now = Date.now();
+  for (const [key, value] of groupAwarenessByConversation.entries()) {
+    if (now - value.timestampMs > maxAgeMs) {
+      groupAwarenessByConversation.delete(key);
+    }
+  }
+}
+
+function regexJsonStringValue(content: string, key: string): string | undefined {
+  const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(`"${escaped}"\\s*:\\s*"([^"]+)"`, "i").exec(content);
+  return asNonEmptyString(match?.[1]);
+}
+
+function extractGroupConversationLabel(
+  metadata: Record<string, unknown> | undefined,
+  content: unknown,
+): string | undefined {
+  const fromMetadata =
+    asNonEmptyString(metadata?.conversationLabel) ?? asNonEmptyString(metadata?.conversation_label);
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+  const rawContent = extractTextPayload(content);
+  if (!rawContent) {
+    return;
+  }
+  return regexJsonStringValue(rawContent, "conversation_label");
+}
+
+function extractGroupSubject(
+  metadata: Record<string, unknown> | undefined,
+  content: unknown,
+): string | undefined {
+  const fromMetadata =
+    asNonEmptyString(metadata?.groupSubject) ?? asNonEmptyString(metadata?.group_subject);
+  if (fromMetadata) {
+    return fromMetadata;
+  }
+  const rawContent = extractTextPayload(content);
+  if (!rawContent) {
+    return;
+  }
+  return regexJsonStringValue(rawContent, "group_subject");
+}
+
+function extractGroupMessagePreview(content: unknown): string | undefined {
+  const rawContent = extractTextPayload(content);
+  if (!rawContent) {
+    return;
+  }
+
+  let cleaned = rawContent;
+  cleaned = cleaned.replace(/```[\s\S]*?```/g, " ");
+  cleaned = cleaned.replace(/Conversation info \(untrusted metadata\):/gi, " ");
+  cleaned = cleaned.replace(/Sender \(untrusted metadata\):/gi, " ");
+  cleaned = cleaned.replace(/Replied message \(untrusted, for context\):/gi, " ");
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+  if (!cleaned) {
+    return;
+  }
+  if (cleaned.length <= 200) {
+    return cleaned;
+  }
+  return `${cleaned.slice(0, 197)}...`;
+}
+
+function resolveSessionIndexPath(stateAgentsDir: string, agentId: string): string {
+  return join(stateAgentsDir, agentId, "sessions", "sessions.json");
+}
+
+function readIndexedTelegramGroups(
+  stateAgentsDir: string,
+  agentId: string | undefined,
+  accountId: string,
+): SessionIndexedGroup[] {
+  const effectiveAgentId = asNonEmptyString(agentId) ?? accountId;
+  if (!effectiveAgentId) {
+    return [];
+  }
+
+  try {
+    const raw = readFileSync(resolveSessionIndexPath(stateAgentsDir, effectiveAgentId), "utf8");
+    const parsed = JSON.parse(raw);
+    const sessions = asRecord(parsed);
+    if (!sessions) {
+      return [];
+    }
+
+    const groups = new Map<string, SessionIndexedGroup>();
+    for (const [sessionKey, value] of Object.entries(sessions)) {
+      const parsedKey = parseTelegramSessionKey(sessionKey);
+      if (parsedKey.kind !== "group") {
+        continue;
+      }
+      if (parsedKey.accountId && parsedKey.accountId !== accountId) {
+        continue;
+      }
+      if (!parsedKey.toTarget) {
+        continue;
+      }
+
+      const parsedTarget = parseTelegramTarget(parsedKey.toTarget);
+      if (parsedTarget.kind !== "group") {
+        continue;
+      }
+
+      const sessionRecord = asRecord(value);
+      const origin = asRecord(sessionRecord?.origin);
+      const conversationLabel = asNonEmptyString(origin?.label);
+      groups.set(parsedTarget.id, {
+        groupId: parsedTarget.id,
+        conversationLabel,
+      });
+    }
+
+    return [...groups.values()];
+  } catch {
+    return [];
+  }
+}
+
+function buildTelegramAwarenessContext(
+  config: OpenClawConfig,
+  accountId: string,
+  agentId: string | undefined,
+  awarenessSenderAgeMs: number,
+  awarenessMaxGroups: number,
+  stateAgentsDir: string,
+): string | undefined {
+  cleanupExpiredGroupAwareness(awarenessSenderAgeMs);
+
+  const byGroupId = new Map<string, GroupAwareness>();
+  for (const awareness of groupAwarenessByConversation.values()) {
+    if (awareness.accountId !== accountId) {
+      continue;
+    }
+    const prev = byGroupId.get(awareness.groupId);
+    if (!prev || awareness.timestampMs > prev.timestampMs) {
+      byGroupId.set(awareness.groupId, awareness);
+    }
+  }
+
+  for (const indexed of readIndexedTelegramGroups(stateAgentsDir, agentId, accountId)) {
+    if (byGroupId.has(indexed.groupId)) {
+      continue;
+    }
+    byGroupId.set(indexed.groupId, {
+      accountId,
+      groupId: indexed.groupId,
+      conversationTarget: `telegram:${indexed.groupId}`,
+      timestampMs: 0,
+      conversationLabel: indexed.conversationLabel,
+    });
+  }
+
+  const groups = [...byGroupId.values()]
+    .sort((a, b) => b.timestampMs - a.timestampMs)
+    .slice(0, awarenessMaxGroups);
+
+  const lines = [
+    "Telegram policy context (plugin-enforced):",
+    "- Group messages from non-allowlist users are visible, but replies and tool calls from those triggers are blocked.",
+    "- Group messages from allowlisted users may receive replies even without mentions.",
+    "- Known group snippets below come from live inbound updates and are more reliable than sessions_list for legacy group keys.",
+  ];
+
+  if (groups.length === 0) {
+    lines.push("- Known groups for this account: none yet.");
+  } else {
+    lines.push("- Known groups for this account:");
+    for (const group of groups) {
+      const allowlist = resolveTelegramAllowlist(config, accountId, group.groupId);
+      const senderStatus =
+        group.senderId && allowlist.has(group.senderId)
+          ? `, latest sender ${group.senderId} allowlisted`
+          : group.senderId
+            ? `, latest sender ${group.senderId} NOT allowlisted`
+            : "";
+      const seenStatus =
+        group.timestampMs > 0 ? `, last seen ${new Date(group.timestampMs).toISOString()}` : "";
+      const label = group.groupSubject ?? group.conversationLabel ?? `id:${group.groupId}`;
+      lines.push(`  - ${label} (id:${group.groupId}${seenStatus}${senderStatus})`);
+      if (group.lastMessagePreview) {
+        lines.push(`    latest observed text: "${group.lastMessagePreview}"`);
+      }
+    }
+  }
+
+  lines.push(
+    "- In DMs asking about group activity, never claim zero visibility if the relevant group is listed above.",
+  );
+  lines.push(
+    "- If a group includes 'latest observed text', treat it as the freshest available snippet and answer from it directly without calling sessions_list first.",
+  );
+  return lines.join("\n");
+}
+
 function getGroupConfig(
   groups: Record<string, unknown> | undefined,
   groupId: string,
@@ -300,6 +577,16 @@ export default function register(api: OpenClawPluginApi): void {
     typeof pluginConfig.maxSenderAgeMs === "number" && pluginConfig.maxSenderAgeMs > 0
       ? pluginConfig.maxSenderAgeMs
       : DEFAULT_MAX_SENDER_AGE_MS;
+  const awarenessSenderAgeMs =
+    typeof pluginConfig.awarenessSenderAgeMs === "number" && pluginConfig.awarenessSenderAgeMs > 0
+      ? pluginConfig.awarenessSenderAgeMs
+      : DEFAULT_AWARENESS_SENDER_AGE_MS;
+  const awarenessMaxGroups =
+    typeof pluginConfig.awarenessMaxGroups === "number" && pluginConfig.awarenessMaxGroups > 0
+      ? Math.floor(pluginConfig.awarenessMaxGroups)
+      : DEFAULT_AWARENESS_MAX_GROUPS;
+  const stateAgentsDir =
+    asNonEmptyString(pluginConfig.stateAgentsDir) ?? DEFAULT_STATE_AGENTS_DIR;
 
   api.on("message_received", (event, ctx) => {
     if (ctx.channelId !== "telegram") {
@@ -321,6 +608,7 @@ export default function register(api: OpenClawPluginApi): void {
     const parsedFrom = parseTelegramTarget(event.from ?? "");
     const isGroup = parsedTo.kind === "group" || parsedFrom.kind === "group";
     const senderId = extractSenderId(metadata, event.from);
+    const groupId = parsedTo.kind === "group" ? parsedTo.id : parsedFrom.kind === "group" ? parsedFrom.id : undefined;
 
     cleanupExpiredContext(maxSenderAgeMs);
     lastInboundByConversation.set(makeConversationKey(accountId, toTarget), {
@@ -330,6 +618,54 @@ export default function register(api: OpenClawPluginApi): void {
       timestampMs: Date.now(),
       isGroup,
     });
+
+    if (!isGroup || !groupId) {
+      return;
+    }
+
+    cleanupExpiredGroupAwareness(awarenessSenderAgeMs);
+    groupAwarenessByConversation.set(makeConversationKey(accountId, toTarget), {
+      accountId: accountId.trim().toLowerCase(),
+      groupId,
+      conversationTarget: toTarget,
+      timestampMs: Date.now(),
+      senderId,
+      conversationLabel: extractGroupConversationLabel(metadata, event.content),
+      groupSubject: extractGroupSubject(metadata, event.content),
+      lastMessagePreview: extractGroupMessagePreview(event.content),
+    });
+  });
+
+  api.on("before_prompt_build", (_event, ctx) => {
+    const sessionKey = asNonEmptyString(ctx.sessionKey);
+    if (!sessionKey) {
+      return;
+    }
+
+    const parsedSession = parseTelegramSessionKey(sessionKey);
+    if (parsedSession.kind !== "direct") {
+      return;
+    }
+
+    const accountId = parsedSession.accountId ?? resolveDefaultEnabledAccount(enabledAccounts);
+    if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
+      return;
+    }
+
+    const awarenessContext = buildTelegramAwarenessContext(
+      api.config,
+      accountId,
+      parsedSession.agentId,
+      awarenessSenderAgeMs,
+      awarenessMaxGroups,
+      stateAgentsDir,
+    );
+    if (!awarenessContext) {
+      return;
+    }
+    return {
+      prependContext: awarenessContext,
+    };
   });
 
   api.on("before_tool_call", (_event, ctx) => {
@@ -345,6 +681,10 @@ export default function register(api: OpenClawPluginApi): void {
 
     const parsedTarget = parseTelegramTarget(parsedSession.toTarget);
     if (parsedTarget.kind === "unknown") {
+      return;
+    }
+    // This guard is only intended to constrain group-sourced runs.
+    if (parsedTarget.kind !== "group") {
       return;
     }
 
