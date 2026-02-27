@@ -32,6 +32,11 @@ Top level:
 - `defaults`
 - `instances[]`
 
+`organization`:
+- `org_id`, `org_slug`, `display_name`
+- `deployment.provider` (`docker` or `kubernetes`)
+- `deployment.kubernetes.namespace|context|kubeconfig` (optional defaults)
+
 `defaults`:
 - `port_stride`
 - `policy.integrations`
@@ -41,10 +46,15 @@ Top level:
 `instances[]`:
 - `id`, `enabled`, `profile`
 - `host`, `paths`
-- `openclaw.config_layers`, `openclaw.docker`
+- `openclaw.config_layers`, `openclaw.docker`, `openclaw.kubernetes`
 - `policy`
 - `channels`
 - `agents`
+
+Kubernetes naming defaults (when omitted):
+- `openclaw.kubernetes.deployment_name`: `oco-<instance-id>`
+- `openclaw.kubernetes.service_name`: `oco-<instance-id>`
+- `openclaw.kubernetes.container_name`: `oco-<instance-id>`
 
 ## 4. Agent and Binding Rules
 Each agent supports:
@@ -88,6 +98,7 @@ Common variables:
 - channel keys (`TELEGRAM_BOT_TOKEN*`, `DISCORD_BOT_TOKEN*`)
 - action keys (`GITHUB_TOKEN`, `NOTION_API_KEY`, `BETTERSTACK_API_TOKEN`, `BETTERSTACK_API_BASE_URL`, `BRAVE_API_KEY`)
 - CLI path overrides (`OCO_INVENTORY_PATH`, `OCO_SOUL_TEMPLATES_DIR`, `OCO_TOOLS_TEMPLATES_DIR`)
+- deployment overrides (`OCO_DEPLOYMENT_PROVIDER`, `OCO_KUBE_CONTEXT`, `OCO_KUBE_NAMESPACE`, `OCO_KUBECONFIG`)
 
 Example JSON5 env reference:
 ```json5
@@ -100,12 +111,15 @@ Example JSON5 env reference:
 }
 ```
 
-## 7. Compose Generation
-`oco compose generate --instance <id>` creates per-instance compose manifests with:
-- isolated mounts for config/state/workspaces
-- host port from inventory
+## 7. Runtime Manifest Generation
+`oco runtime generate --instance <id>` (or `oco compose generate --instance <id>`) creates provider-specific runtime manifests:
+- Docker provider: `.generated/<instance-id>/docker-compose.yaml`
+- Kubernetes provider: `.generated/<instance-id>/kubernetes.yaml`
+
+Both include:
 - OpenClaw runtime path envs
 - passthrough provider/integration env vars when present
+- rendered config handoff to runtime
 
 ## 8. Safety Rules
 Do not commit:
@@ -132,8 +146,8 @@ oco validate
 oco policy validate
 oco preflight --instance core-human
 oco render --instance core-human
-oco compose generate --instance core-human
-oco compose up --instance core-human
+oco runtime generate --instance core-human
+oco runtime up --instance core-human
 oco health --instance core-human
 ```
 

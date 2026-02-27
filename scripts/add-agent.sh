@@ -38,5 +38,5 @@ if [[ -n "$MODEL" ]]; then
 fi
 
 "$OCO" "${args[@]}"
-"$OCO" "${INV_ARGS[@]}" compose restart --instance "$INSTANCE_ID"
+"$OCO" "${INV_ARGS[@]}" runtime restart --instance "$INSTANCE_ID"
 "$OCO" "${INV_ARGS[@]}" agent list --instance "$INSTANCE_ID"

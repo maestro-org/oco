@@ -23,13 +23,13 @@ echo "[1/6] Validate inventory and policy"
 echo "[2/6] Render configuration"
 "$OCO" "${INV_ARGS[@]}" render --instance "$INSTANCE_ID"
 
-echo "[3/6] Generate compose manifest"
+echo "[3/6] Generate runtime manifest"
 "$OCO" "${INV_ARGS[@]}" compose generate --instance "$INSTANCE_ID"
 
 echo "[4/6] Preflight checks"
 "$OCO" "${INV_ARGS[@]}" preflight --instance "$INSTANCE_ID"
 
-echo "[5/6] Deploy/update instance"
+echo "[5/6] Deploy/update instance (provider-aware)"
 "$OCO" "${INV_ARGS[@]}" compose up --instance "$INSTANCE_ID"
 
 echo "[6/6] Health check"

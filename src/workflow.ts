@@ -1,7 +1,17 @@
 import { existsSync } from 'node:fs';
 import { composeFilePath, composeRunning, generateCompose, runComposeAction } from './compose';
 import { buildInstanceContext } from './context';
+import { resolveDeploymentProvider } from './deployment';
 import { ValidationError } from './errors';
+import {
+  currentKubernetesContext,
+  generateKubernetesManifest,
+  kubernetesManifestPath,
+  kubernetesRunning,
+  resolveKubernetesTarget,
+  runKubernetesAction,
+  runKubernetesGatewayCommand,
+} from './kubernetes';
 import {
   findInstance,
   getInstances,
@@ -28,6 +38,37 @@ export function loadAndValidate(invFile?: string): {
 
 export function validateOnly(invFile?: string): { invPath: string; inventory: Record<string, unknown> } {
   return loadAndValidate(invFile);
+}
+
+export function deploymentTargetForInstance(
+  invFile: string | undefined,
+  instanceId: string,
+): Record<string, unknown> {
+  const { inventory } = loadAndValidate(invFile);
+  const instance = findInstance(inventory, instanceId);
+  const resolved = resolveDeploymentProvider(inventory);
+
+  if (resolved.provider === 'docker') {
+    return {
+      instance: instanceId,
+      provider: resolved.provider,
+      provider_source: resolved.source,
+    };
+  }
+
+  const target = resolveKubernetesTarget(inventory, instance);
+  return {
+    instance: instanceId,
+    provider: resolved.provider,
+    provider_source: resolved.source,
+    kubernetes: {
+      namespace: target.namespace,
+      context: target.context || currentKubernetesContext(target),
+      kubeconfig: target.kubeconfig,
+      deployment: target.deploymentName,
+      service: target.serviceName,
+    },
+  };
 }
 
 export function renderInstance(
@@ -73,13 +114,18 @@ export function generateComposeForInstance(
   const instance = findInstance(inventory, instanceId);
 
   const { context, rendered, generatedPath } = renderInstanceConfig(instance, invPath, false);
-  const composePath = generateCompose(instance, context, generatedPath);
+  const provider = resolveDeploymentProvider(inventory).provider;
+  const runtimePath =
+    provider === 'docker'
+      ? generateCompose(instance, context, generatedPath)
+      : generateKubernetesManifest(inventory, instance, context, generatedPath);
 
   writeJson(`${context.generatedDir}/openclaw.resolved.json`, rendered);
 
   return {
     instance: instanceId,
-    compose_path: composePath,
+    provider,
+    runtime_manifest: runtimePath,
   };
 }
 
@@ -90,16 +136,25 @@ export function runCompose(
 ): Record<string, unknown> {
   const { invPath, inventory } = loadAndValidate(invFile);
   const instance = findInstance(inventory, instanceId);
+  const provider = resolveDeploymentProvider(inventory).provider;
   const context = buildInstanceContext(instance, invPath);
 
   if (['up', 'restart', 'pull'].includes(action)) {
     renderInstanceConfig(instance, invPath, false);
-    generateCompose(instance, context, `${context.configDir}/openclaw.json5`);
+    if (provider === 'docker') {
+      generateCompose(instance, context, `${context.configDir}/openclaw.json5`);
+    } else {
+      generateKubernetesManifest(inventory, instance, context, `${context.configDir}/openclaw.json5`);
+    }
   }
 
-  const output = runComposeAction(context, action);
+  const output =
+    provider === 'docker'
+      ? runComposeAction(context, action)
+      : runKubernetesAction(inventory, instance, context, action);
   return {
     instance: instanceId,
+    provider,
     action,
     output,
   };
@@ -156,12 +211,13 @@ export function preflightInstance(
 ): Record<string, unknown> {
   const { invPath, inventory } = loadAndValidate(invFile);
   const instance = findInstance(inventory, instanceId);
-
-  const dockerVersion = runCommand(['docker', '--version']).stdout.trim();
-  const composeVersion = runCommand(['docker', 'compose', 'version']).stdout.trim();
+  const provider = resolveDeploymentProvider(inventory).provider;
 
   const { context, rendered, generatedPath } = renderInstanceConfig(instance, invPath, false);
-  const composePath = generateCompose(instance, context, generatedPath);
+  const runtimePath =
+    provider === 'docker'
+      ? generateCompose(instance, context, generatedPath)
+      : generateKubernetesManifest(inventory, instance, context, generatedPath);
 
   const policies: Record<string, unknown> = {
     instance: effectivePolicySummary(inventory, instance).policy,
@@ -170,30 +226,50 @@ export function preflightInstance(
 
   const agents = Array.isArray(instance.agents) ? instance.agents : [];
   for (const rawAgent of agents) {
-    if (typeof rawAgent !== 'object' || rawAgent === null || Array.isArray(rawAgent)) {
+    if (!isRecord(rawAgent)) {
       continue;
     }
-    const agent = rawAgent as Record<string, unknown>;
-    const agentId = typeof agent.id === 'string' ? agent.id : '';
+    const agentId = typeof rawAgent.id === 'string' ? rawAgent.id : '';
     if (!agentId) {
       continue;
     }
     (policies.agents as Record<string, unknown>)[agentId] = effectivePolicySummary(
       inventory,
       instance,
-      agent,
+      rawAgent,
     ).policy;
   }
 
   writeJson(`${context.generatedDir}/effective-policy.json`, policies);
   writeJson(`${context.generatedDir}/render-summary.json`, rendered);
 
+  if (provider === 'docker') {
+    const dockerVersion = runCommand(['docker', '--version']).stdout.trim();
+    const composeVersion = runCommand(['docker', 'compose', 'version']).stdout.trim();
+
+    return {
+      instance: instanceId,
+      provider,
+      docker: dockerVersion,
+      compose: composeVersion,
+      generated_config: generatedPath,
+      runtime_manifest: runtimePath,
+      effective_policy: `${context.generatedDir}/effective-policy.json`,
+    };
+  }
+
+  const target = resolveKubernetesTarget(inventory, instance);
+  const kubectlVersion = runCommand(['kubectl', 'version', '--client']).stdout.trim();
+  const kubeContext = target.context || currentKubernetesContext(target);
+
   return {
     instance: instanceId,
-    docker: dockerVersion,
-    compose: composeVersion,
+    provider,
+    kubectl: kubectlVersion,
+    kube_context: kubeContext,
+    kube_namespace: target.namespace,
     generated_config: generatedPath,
-    generated_compose: composePath,
+    runtime_manifest: runtimePath,
     effective_policy: `${context.generatedDir}/effective-policy.json`,
   };
 }
@@ -201,16 +277,32 @@ export function preflightInstance(
 export function healthInstance(invFile: string | undefined, instanceId: string): Record<string, unknown> {
   const { invPath, inventory } = loadAndValidate(invFile);
   const instance = findInstance(inventory, instanceId);
+  const provider = resolveDeploymentProvider(inventory).provider;
   const context = buildInstanceContext(instance, invPath);
 
-  const running = composeRunning(context);
-  const composePath = composeFilePath(context);
-  const ps = existsSync(composePath) ? runComposeAction(context, 'ps') : '';
+  if (provider === 'docker') {
+    const running = composeRunning(context);
+    const composePath = composeFilePath(context);
+    const ps = existsSync(composePath) ? runComposeAction(context, 'ps') : '';
+
+    return {
+      instance: instanceId,
+      provider,
+      status: running ? 'running' : 'degraded',
+      runtime_manifest: composePath,
+      ps,
+    };
+  }
+
+  const running = kubernetesRunning(inventory, instance);
+  const manifestPath = kubernetesManifestPath(context);
+  const ps = runKubernetesAction(inventory, instance, context, 'ps');
 
   return {
     instance: instanceId,
+    provider,
     status: running ? 'running' : 'degraded',
-    compose: composePath,
+    runtime_manifest: manifestPath,
     ps,
   };
 }
@@ -222,26 +314,17 @@ export function updateInstance(
 ): Record<string, unknown> {
   const { invPath, inventory } = loadAndValidate(invFile);
   const instance = findInstance(inventory, instanceId);
+  const provider = resolveDeploymentProvider(inventory).provider;
 
-  const { context, rendered, generatedPath } = renderInstanceConfig(instance, invPath, false);
-  const composePath = generateCompose(instance, context, generatedPath);
-  const revision = createRevision(invPath, instance, rendered, composePath);
+  const rendered = renderInstanceConfig(instance, invPath, false);
+  const runtimePath =
+    provider === 'docker'
+      ? generateCompose(instance, rendered.context, rendered.generatedPath)
+      : generateKubernetesManifest(inventory, instance, rendered.context, rendered.generatedPath);
+  const revision = createRevision(invPath, instance, rendered.rendered, runtimePath);
 
   if (imageTag) {
-    if (!isRecord(instance.openclaw)) {
-      instance.openclaw = {};
-    }
-    const openclaw = instance.openclaw as Record<string, unknown>;
-
-    if (!isRecord(openclaw.docker)) {
-      openclaw.docker = {};
-    }
-    const docker = openclaw.docker as Record<string, unknown>;
-
-    const image = typeof docker.image === 'string' ? docker.image : 'ghcr.io/openclaw/openclaw:latest';
-    const base = image.includes(':') ? image.split(':', 1)[0] : image;
-    docker.image = `${base}:${imageTag}`;
-
+    updateImageTag(instance, provider, imageTag);
     saveInventoryFile(invPath, inventory);
   }
 
@@ -249,15 +332,29 @@ export function updateInstance(
   validatePolicies(inventory, getInstances(inventory));
 
   const rerender = renderInstanceConfig(instance, invPath, false);
-  generateCompose(instance, rerender.context, rerender.generatedPath);
+  if (provider === 'docker') {
+    generateCompose(instance, rerender.context, rerender.generatedPath);
+    const pullOutput = runComposeAction(rerender.context, 'pull');
+    const upOutput = runComposeAction(rerender.context, 'up');
+    return {
+      instance: instanceId,
+      provider,
+      revision,
+      status: composeRunning(rerender.context) ? 'running' : 'degraded',
+      pull: pullOutput,
+      up: upOutput,
+    };
+  }
 
-  const pullOutput = runComposeAction(rerender.context, 'pull');
-  const upOutput = runComposeAction(rerender.context, 'up');
+  generateKubernetesManifest(inventory, instance, rerender.context, rerender.generatedPath);
+  const upOutput = runKubernetesAction(inventory, instance, rerender.context, 'up');
+  const pullOutput = runKubernetesAction(inventory, instance, rerender.context, 'pull');
 
   return {
     instance: instanceId,
+    provider,
     revision,
-    status: composeRunning(rerender.context) ? 'running' : 'degraded',
+    status: kubernetesRunning(inventory, instance) ? 'running' : 'degraded',
     pull: pullOutput,
     up: upOutput,
   };
@@ -298,15 +395,28 @@ export function rollbackInstance(
   validatePolicies(inventory, getInstances(inventory));
 
   const instance = findInstance(inventory, instanceId);
+  const provider = resolveDeploymentProvider(inventory).provider;
   const render = renderInstanceConfig(instance, invPath, false);
-  generateCompose(instance, render.context, render.generatedPath);
 
-  const upOutput = runComposeAction(render.context, 'up');
+  if (provider === 'docker') {
+    generateCompose(instance, render.context, render.generatedPath);
+    const upOutput = runComposeAction(render.context, 'up');
+    return {
+      instance: instanceId,
+      provider,
+      revision,
+      status: composeRunning(render.context) ? 'running' : 'degraded',
+      up: upOutput,
+    };
+  }
 
+  generateKubernetesManifest(inventory, instance, render.context, render.generatedPath);
+  const upOutput = runKubernetesAction(inventory, instance, render.context, 'up');
   return {
     instance: instanceId,
+    provider,
     revision,
-    status: composeRunning(render.context) ? 'running' : 'degraded',
+    status: kubernetesRunning(inventory, instance) ? 'running' : 'degraded',
     up: upOutput,
   };
 }
@@ -322,6 +432,11 @@ function runGatewayCommand(
 ): string {
   const { invPath, inventory } = loadAndValidate(invFile);
   const instance = findInstance(inventory, instanceId);
+  const provider = resolveDeploymentProvider(inventory).provider;
+  if (provider === 'kubernetes') {
+    return runKubernetesGatewayCommand(inventory, instance, commandArgs);
+  }
+
   const context = buildInstanceContext(instance, invPath);
   const composePath = composeFilePath(context);
 
@@ -366,6 +481,36 @@ function parseOutputJson(raw: string): unknown {
   } catch {
     return raw;
   }
+}
+
+function updateImageTag(instance: Record<string, unknown>, provider: 'docker' | 'kubernetes', imageTag: string): void {
+  if (!isRecord(instance.openclaw)) {
+    instance.openclaw = {};
+  }
+  const openclaw = instance.openclaw as Record<string, unknown>;
+
+  if (provider === 'docker') {
+    if (!isRecord(openclaw.docker)) {
+      openclaw.docker = {};
+    }
+    const docker = openclaw.docker as Record<string, unknown>;
+    const image = typeof docker.image === 'string' ? docker.image : 'ghcr.io/openclaw/openclaw:latest';
+    const base = image.includes(':') ? image.split(':', 1)[0] : image;
+    docker.image = `${base}:${imageTag}`;
+    return;
+  }
+
+  if (!isRecord(openclaw.kubernetes)) {
+    openclaw.kubernetes = {};
+  }
+  const kubernetes = openclaw.kubernetes as Record<string, unknown>;
+  const docker = isRecord(openclaw.docker) ? (openclaw.docker as Record<string, unknown>) : {};
+  const image =
+    (typeof kubernetes.image === 'string' && kubernetes.image.trim()) ||
+    (typeof docker.image === 'string' && docker.image.trim()) ||
+    'ghcr.io/openclaw/openclaw:latest';
+  const base = image.includes(':') ? image.split(':', 1)[0] : image;
+  kubernetes.image = `${base}:${imageTag}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

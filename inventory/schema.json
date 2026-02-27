@@ -11,7 +11,21 @@
       "properties": {
         "org_id": { "type": "string" },
         "org_slug": { "type": "string" },
-        "display_name": { "type": "string" }
+        "display_name": { "type": "string" },
+        "deployment": {
+          "type": "object",
+          "properties": {
+            "provider": { "type": "string", "enum": ["docker", "kubernetes"] },
+            "kubernetes": {
+              "type": "object",
+              "properties": {
+                "namespace": { "type": "string", "minLength": 1 },
+                "context": { "type": "string", "minLength": 1 },
+                "kubeconfig": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
       }
     },
     "defaults": {
@@ -53,7 +67,40 @@
             "required": ["config_layers"],
             "properties": {
               "config_layers": { "type": "array", "minItems": 1, "items": { "type": "string" } },
-              "docker": { "type": "object" }
+              "docker": { "type": "object" },
+              "kubernetes": {
+                "type": "object",
+                "properties": {
+                  "namespace": { "type": "string" },
+                  "context": { "type": "string" },
+                  "kubeconfig": { "type": "string" },
+                  "deployment_name": { "type": "string" },
+                  "service_name": { "type": "string" },
+                  "container_name": { "type": "string" },
+                  "image": { "type": "string" },
+                  "replicas": { "type": "integer", "minimum": 1 },
+                  "image_pull_policy": {
+                    "type": "string",
+                    "enum": ["Always", "IfNotPresent", "Never"]
+                  },
+                  "service_type": {
+                    "type": "string",
+                    "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+                  },
+                  "node_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+                  "state_pvc": { "type": "string" },
+                  "workspace_pvc": { "type": "string" },
+                  "create_namespace": { "type": "boolean" },
+                  "environment": { "type": "object" },
+                  "labels": { "type": "object" },
+                  "command": {
+                    "oneOf": [
+                      { "type": "string" },
+                      { "type": "array", "items": { "type": "string" } }
+                    ]
+                  }
+                }
+              }
             }
           },
           "agents": {

@@ -21,6 +21,8 @@ Add/adjust these instances in your inventory (`instances.local.yaml` recommended
 - `discord-systems`
 - `discord-infra`
 
+Set org deployment target once (Docker or Kubernetes) under `organization.deployment.provider`. All runtime commands below automatically follow that setting.
+
 You can keep these IDs or rename them. If renamed, update all commands below accordingly.
 
 Use account IDs:

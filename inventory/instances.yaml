@@ -3,6 +3,10 @@ organization:
   org_id: maestro
   org_slug: maestro
   display_name: Maestro
+  deployment:
+    provider: docker
+    kubernetes:
+      namespace: default
 defaults:
   port_stride: 20
   policy:
@@ -71,6 +75,11 @@ instances:
         image: ghcr.io/openclaw/openclaw:2026.2.22
         container_name: openclaw-core-human
         restart: unless-stopped
+      kubernetes:
+        deployment_name: oco-core-human
+        service_name: oco-core-human
+        image_pull_policy: IfNotPresent
+        service_type: ClusterIP
     policy:
       integrations:
         allow:

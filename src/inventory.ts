@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { validateDeploymentConfig } from './deployment';
 import { ValidationError } from './errors';
 import { asRecord, isRecord, loadYaml, saveYaml } from './utils';
 
@@ -142,6 +143,8 @@ export function validateInventory(inventory: Record<string, unknown>, invPath: s
     errors.push('version must be 1');
   }
 
+  validateDeploymentConfig(inventory, errors);
+
   if (!Array.isArray(inventory.instances) || inventory.instances.length === 0) {
     errors.push('instances must be a non-empty list');
     raiseIfErrors(errors);
@@ -243,6 +246,8 @@ export function validateInventory(inventory: Record<string, unknown>, invPath: s
         }
       }
     }
+
+    validateKubernetesRuntime(errors, label, openclaw);
 
     const agents = Array.isArray(raw.agents) ? raw.agents : [];
     validateAgents(errors, label, agents);
@@ -371,4 +376,123 @@ function raiseIfErrors(errors: string[]): void {
     return;
   }
   throw new ValidationError(`Inventory validation failed:\n- ${errors.join('\n- ')}`);
+}
+
+function validateKubernetesRuntime(
+  errors: string[],
+  label: string,
+  openclaw: Record<string, unknown>,
+): void {
+  const kubernetes = openclaw.kubernetes;
+  if (kubernetes === undefined) {
+    return;
+  }
+
+  if (!isRecord(kubernetes)) {
+    errors.push(`${label}.openclaw.kubernetes must be a mapping`);
+    return;
+  }
+
+  assertOptionalString(errors, kubernetes, 'namespace', `${label}.openclaw.kubernetes`);
+  assertOptionalString(errors, kubernetes, 'context', `${label}.openclaw.kubernetes`);
+  assertOptionalString(errors, kubernetes, 'kubeconfig', `${label}.openclaw.kubernetes`);
+  assertOptionalString(errors, kubernetes, 'image', `${label}.openclaw.kubernetes`);
+  assertOptionalString(errors, kubernetes, 'state_pvc', `${label}.openclaw.kubernetes`);
+  assertOptionalString(errors, kubernetes, 'workspace_pvc', `${label}.openclaw.kubernetes`);
+
+  const namePattern = /^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/;
+  assertOptionalString(errors, kubernetes, 'deployment_name', `${label}.openclaw.kubernetes`, namePattern);
+  assertOptionalString(errors, kubernetes, 'service_name', `${label}.openclaw.kubernetes`, namePattern);
+  assertOptionalString(errors, kubernetes, 'container_name', `${label}.openclaw.kubernetes`, namePattern);
+
+  const replicas = kubernetes.replicas;
+  if (replicas !== undefined && (typeof replicas !== 'number' || !Number.isInteger(replicas) || replicas < 1)) {
+    errors.push(`${label}.openclaw.kubernetes.replicas must be a positive integer`);
+  }
+
+  const createNamespace = kubernetes.create_namespace;
+  if (createNamespace !== undefined && typeof createNamespace !== 'boolean') {
+    errors.push(`${label}.openclaw.kubernetes.create_namespace must be a boolean`);
+  }
+
+  const command = kubernetes.command;
+  if (command !== undefined && typeof command !== 'string' && !Array.isArray(command)) {
+    errors.push(`${label}.openclaw.kubernetes.command must be a string or list`);
+  }
+
+  const imagePullPolicy = kubernetes.image_pull_policy;
+  if (imagePullPolicy !== undefined) {
+    const normalized = typeof imagePullPolicy === 'string' ? imagePullPolicy.trim() : '';
+    if (!['Always', 'IfNotPresent', 'Never'].includes(normalized)) {
+      errors.push(`${label}.openclaw.kubernetes.image_pull_policy must be Always, IfNotPresent, or Never`);
+    }
+  }
+
+  const serviceType = kubernetes.service_type;
+  if (serviceType !== undefined) {
+    const normalized = typeof serviceType === 'string' ? serviceType.trim() : '';
+    if (!['ClusterIP', 'NodePort', 'LoadBalancer'].includes(normalized)) {
+      errors.push(`${label}.openclaw.kubernetes.service_type must be ClusterIP, NodePort, or LoadBalancer`);
+    }
+  }
+
+  const nodePort = kubernetes.node_port;
+  if (
+    nodePort !== undefined &&
+    (typeof nodePort !== 'number' || !Number.isInteger(nodePort) || nodePort < 1 || nodePort > 65535)
+  ) {
+    errors.push(`${label}.openclaw.kubernetes.node_port must be an integer between 1 and 65535`);
+  }
+
+  if (nodePort !== undefined && serviceType !== 'NodePort') {
+    errors.push(`${label}.openclaw.kubernetes.node_port is only valid when service_type is NodePort`);
+  }
+
+  assertOptionalStringMap(errors, kubernetes, 'environment', `${label}.openclaw.kubernetes`);
+  assertOptionalStringMap(errors, kubernetes, 'labels', `${label}.openclaw.kubernetes`);
+}
+
+function assertOptionalString(
+  errors: string[],
+  obj: Record<string, unknown>,
+  key: string,
+  parent: string,
+  pattern?: RegExp,
+): void {
+  const value = obj[key];
+  if (value === undefined) {
+    return;
+  }
+  if (typeof value !== 'string' || !value.trim()) {
+    errors.push(`${parent}.${key} must be a non-empty string`);
+    return;
+  }
+  if (pattern && !pattern.test(value)) {
+    errors.push(`${parent}.${key} contains invalid characters`);
+  }
+}
+
+function assertOptionalStringMap(
+  errors: string[],
+  obj: Record<string, unknown>,
+  key: string,
+  parent: string,
+): void {
+  const value = obj[key];
+  if (value === undefined) {
+    return;
+  }
+  if (!isRecord(value)) {
+    errors.push(`${parent}.${key} must be a mapping`);
+    return;
+  }
+
+  for (const [mapKey, mapValue] of Object.entries(value)) {
+    if (!mapKey.trim()) {
+      errors.push(`${parent}.${key} contains an empty key`);
+    }
+    if (mapValue === undefined || mapValue === null || Array.isArray(mapValue) || isRecord(mapValue)) {
+      errors.push(`${parent}.${key}.${mapKey} must be a string or scalar`);
+    }
+  }
 }

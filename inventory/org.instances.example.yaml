@@ -3,6 +3,10 @@ organization:
   org_id: example-org
   org_slug: example-org
   display_name: Example Org
+  deployment:
+    provider: docker
+    kubernetes:
+      namespace: default
 defaults:
   port_stride: 20
   policy:
@@ -49,6 +53,11 @@ instances:
         environment:
           OPENAI_API_KEY: ${EXAMPLE_ORG_OPENAI_API_KEY}
           ANTHROPIC_API_KEY: ${EXAMPLE_ORG_ANTHROPIC_API_KEY}
+      kubernetes:
+        deployment_name: oco-example-org-core-human
+        service_name: oco-example-org-core-human
+        image_pull_policy: IfNotPresent
+        service_type: ClusterIP
     policy:
       integrations:
         allow:

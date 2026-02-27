@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import YAML from 'yaml';
 import { ensureDir, saveYaml, writeJson } from './utils';
 
@@ -9,7 +9,7 @@ export function createRevision(
   inventoryPath: string,
   instance: Record<string, unknown>,
   renderedConfig?: Record<string, unknown>,
-  composePath?: string,
+  runtimeManifestPath?: string,
 ): string {
   const revision = revisionIdNow();
   const instanceId = String(instance.id);
@@ -23,8 +23,14 @@ export function createRevision(
     writeJson(resolve(root, 'openclaw.resolved.json'), renderedConfig);
   }
 
-  if (composePath && existsSync(composePath)) {
-    writeFileSync(resolve(root, 'docker-compose.yaml'), readFileSync(composePath, 'utf-8'), 'utf-8');
+  let runtimeManifestName: string | undefined;
+  if (runtimeManifestPath && existsSync(runtimeManifestPath)) {
+    runtimeManifestName = basename(runtimeManifestPath);
+    writeFileSync(
+      resolve(root, runtimeManifestName),
+      readFileSync(runtimeManifestPath, 'utf-8'),
+      'utf-8',
+    );
   }
 
   writeJson(resolve(root, 'manifest.json'), {
@@ -32,6 +38,7 @@ export function createRevision(
     created_at: new Date().toISOString(),
     instance_id: instanceId,
     inventory_path: inventoryPath,
+    runtime_manifest: runtimeManifestName,
   });
 
   return revision;
