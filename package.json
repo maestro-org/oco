@@ -3,6 +3,14 @@
   "version": "0.2.0",
   "description": "TypeScript CLI orchestrator for multi-instance OpenClaw deployments",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maestro-org/oco.git"
+  },
+  "homepage": "https://github.com/maestro-org/oco#readme",
+  "bugs": {
+    "url": "https://github.com/maestro-org/oco/issues"
+  },
   "type": "commonjs",
   "packageManager": "bun@1.3.9",
   "bin": {
