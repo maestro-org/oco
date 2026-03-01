@@ -34,7 +34,7 @@ This repository uses GitHub Actions for continuous integration, security analysi
 ## Release Flow
 1. Update `package.json` version.
 2. Push to GitHub.
-3. Create a GitHub Release for that version.
+3. Create a GitHub Release tag that matches package version (for example `v0.2.1` for `package.json` version `0.2.1`).
 4. `release.yml` publishes to npm automatically.
 
 ## Local Parity Commands

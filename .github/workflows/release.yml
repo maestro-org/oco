@@ -38,6 +38,19 @@ jobs:
       - name: Build package
         run: bun run build
 
+      - name: Validate release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          RELEASE_VERSION="${RELEASE_TAG#v}"
+
+          if [ "$PACKAGE_VERSION" != "$RELEASE_VERSION" ]; then
+            echo "Release tag (${RELEASE_TAG}) does not match package.json version (${PACKAGE_VERSION})."
+            echo "Expected release tag v${PACKAGE_VERSION} (or ${PACKAGE_VERSION})."
+            exit 1
+          fi
+
       - name: Pack and verify npm package contents
         id: pack
         run: |
