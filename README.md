@@ -31,7 +31,7 @@ See `docs/INTEGRATIONS_AND_USE_CASES.md` for details.
 
 ## Quick Start
 
-### 1. Install
+### Install
 Global install (recommended):
 ```bash
 npm install -g @maestro-org/oco
@@ -48,7 +48,7 @@ If `oco` is not found:
 echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> ~/.zshrc
 ```
 
-### 2. Initialize Inventory
+### Initialize Inventory
 ```bash
 oco inventory init
 # or: npx @maestro-org/oco inventory init
@@ -75,7 +75,7 @@ Path resolution order:
 3. `inventory/instances.local.yaml`
 4. `inventory/instances.yaml`
 
-### 3. Configure Secrets
+### Configure Secrets
 ```bash
 cp .env.example .env
 ```
@@ -106,7 +106,7 @@ For multi-org isolation, keep secrets in separate files (for example `.env.acme`
 ORG_ENV_FILE=.env.acme ./scripts/org.sh acme validate
 ```
 
-### 4. Choose Deployment Target
+### Choose Deployment Target
 Set the org default in inventory:
 ```yaml
 organization:
@@ -130,7 +130,7 @@ Inspect the resolved target:
 oco deployment target --instance core-human
 ```
 
-### 5. Validate and Deploy
+### Validate and Deploy
 ```bash
 oco validate
 oco policy validate
@@ -142,7 +142,7 @@ oco health --instance core-human
 
 `oco compose ...` and `oco runtime ...` are provider-aware and automatically use Docker Compose or Kubernetes based on org config/env.
 
-### 5. Manage Agents and Templates
+### Manage Agents and Templates
 ```bash
 oco agent list --instance core-human
 
@@ -170,14 +170,6 @@ Run org-scoped commands with the helper script:
 ./scripts/org.sh <org> health --instance <instance-id>
 ```
 
-## CI/CD
-- CI workflow (`.github/workflows/ci.yml`) runs typecheck, build, unit/integration tests, coverage generation, and dependency audit on push/PR.
-- Security workflow (`.github/workflows/codeql.yml`) runs GitHub CodeQL analysis on push/PR and weekly schedule.
-- Release workflow (`.github/workflows/release.yml`) publishes to npm and registers GitHub linked artifact metadata when a GitHub Release is published.
-- Required secret for release: `NPM_TOKEN` (npm automation token with publish scope).
-- Optional secrets: `CODECOV_TOKEN`, `GH_ARTIFACT_METADATA_TOKEN`.
-- Setup details: `docs/CI_CD.md`.
-
 ## Recommended Functional Isolation
 Group by credential risk and write scope. For example:
 - `discord-knowledge`: read-heavy QA/research agents.
@@ -198,6 +190,3 @@ Comprehensive documentation is available in `docs/`, including deployment steps,
 git status --short --ignored
 rg -n "sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|EC|OPENSSH|PGP|DSA)? ?PRIVATE KEY" .
 ```
-
-## License
-MIT (`LICENSE`)
