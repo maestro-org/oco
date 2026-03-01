@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-org-orchestrator",
+  "name": "@maestro-org/oco",
   "version": "0.2.0",
   "description": "TypeScript CLI orchestrator for multi-instance OpenClaw deployments",
   "license": "MIT",
