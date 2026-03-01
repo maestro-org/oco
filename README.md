@@ -32,22 +32,26 @@ See `docs/INTEGRATIONS_AND_USE_CASES.md` for details.
 ## Quick Start
 
 ### 1. Install
+Global install (recommended):
 ```bash
-git clone https://github.com/<your-org>/oco.git
-cd oco
-bun install
-bun run install:global
+npm install -g @maestro-org/oco
 oco --help
+```
+
+Run without installing globally:
+```bash
+npx @maestro-org/oco --help
 ```
 
 If `oco` is not found:
 ```bash
-echo 'export PATH="$HOME/.bun/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> ~/.zshrc
 ```
 
 ### 2. Initialize Inventory
 ```bash
 oco inventory init
+# or: npx @maestro-org/oco inventory init
 ```
 
 Edit `inventory/instances.local.yaml` (recommended) for:
