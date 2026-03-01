@@ -1,7 +1,6 @@
 name: Release
 
 on:
-  workflow_dispatch:
   release:
     types:
       - published
@@ -37,6 +36,21 @@ jobs:
 
       - name: Build package
         run: bun run build
+
+      - name: Verify npm package contents
+        run: |
+          PACK_JSON="$(npm pack --dry-run --json)"
+          echo "$PACK_JSON"
+          echo "$PACK_JSON" | node -e '
+            const fs = require("node:fs");
+            const raw = fs.readFileSync(0, "utf8").trim();
+            const payload = JSON.parse(raw);
+            const files = new Set((payload[0]?.files ?? []).map((entry) => entry.path));
+            if (!files.has("dist/cli.js")) {
+              console.error("npm pack is missing dist/cli.js");
+              process.exit(1);
+            }
+          '
 
       - name: Validate npm token
         env:
