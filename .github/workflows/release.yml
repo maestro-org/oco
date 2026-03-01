@@ -9,6 +9,7 @@ permissions:
   contents: read
   id-token: write
   artifact-metadata: write
+  packages: write
 
 jobs:
   npm-publish:
@@ -105,6 +106,11 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish "${{ steps.pack.outputs.tarball }}" --provenance --access public
+
+      - name: Publish to GitHub Packages
+        env:
+          NODE_AUTH_TOKEN: ${{ github.token }}
+        run: npm publish "${{ steps.pack.outputs.tarball }}" --registry=https://npm.pkg.github.com
 
       - name: Create GitHub linked artifact storage metadata
         id: storage_metadata
