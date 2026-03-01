@@ -17,7 +17,7 @@ This repository uses GitHub Actions for continuous integration, security analysi
   - Runs when a GitHub Release is published.
   - Re-checks quality gates (`bun run check` + `bun run build`).
   - Publishes the package to npm.
-  - Creates a GitHub linked artifact metadata record for the published npm tarball.
+  - Creates GitHub linked artifact metadata records (storage + deployment) for the published npm tarball.
 
 ## Required Secrets
 - `NPM_TOKEN` (required)
