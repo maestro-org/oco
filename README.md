@@ -54,6 +54,8 @@ oco inventory init
 # or: npx @maestro-org/oco inventory init
 ```
 
+When installed from npm, `oco inventory init` uses the bundled inventory template if no local template file exists yet.
+
 Edit `inventory/instances.local.yaml` (recommended) for:
 - organization metadata
 - organization deployment target (`organization.deployment.provider`)

@@ -10,6 +10,12 @@
   },
   "files": [
     "dist/**/*",
+    "inventory/instances.example.yaml",
+    "inventory/instances.yaml",
+    "inventory/org.instances.example.yaml",
+    "inventory/schema.json",
+    "templates/souls/**/*",
+    "templates/tools/**/*",
     "README.md",
     "LICENSE"
   ],

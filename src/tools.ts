@@ -10,6 +10,7 @@ import {
   loadInventoryFile,
   validateInventory,
 } from './inventory';
+import { resolveBundledPath } from './paths';
 import { validatePolicies } from './policy';
 import { ensureDir, isRecord } from './utils';
 
@@ -135,7 +136,17 @@ function toolsTemplatesDir(invPath: string): string {
   }
 
   const invDir = resolve(invPath, '..');
-  return resolve(invDir, `../${DEFAULT_TOOLS_TEMPLATES_DIR}`);
+  const localDir = resolve(invDir, `../${DEFAULT_TOOLS_TEMPLATES_DIR}`);
+  if (existsSync(localDir)) {
+    return localDir;
+  }
+
+  const bundledDir = resolveBundledPath(DEFAULT_TOOLS_TEMPLATES_DIR);
+  if (existsSync(bundledDir)) {
+    return bundledDir;
+  }
+
+  return localDir;
 }
 
 function resolveWorkspace(agent: Record<string, unknown>, fallback: string): string {

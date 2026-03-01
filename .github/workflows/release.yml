@@ -46,9 +46,16 @@ jobs:
             const raw = fs.readFileSync(0, "utf8").trim();
             const payload = JSON.parse(raw);
             const files = new Set((payload[0]?.files ?? []).map((entry) => entry.path));
-            if (!files.has("dist/cli.js")) {
-              console.error("npm pack is missing dist/cli.js");
-              process.exit(1);
+            const required = [
+              "dist/cli.js",
+              "inventory/instances.example.yaml",
+              "inventory/instances.yaml",
+            ];
+            for (const file of required) {
+              if (!files.has(file)) {
+                console.error(`npm pack is missing ${file}`);
+                process.exit(1);
+              }
             }
           '
 

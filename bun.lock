@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "openclaw-org-orchestrator",
+      "name": "@maestro-org/oco",
       "dependencies": {
         "commander": "^12.1.0",
         "json5": "^2.2.3",

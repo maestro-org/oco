@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { validateDeploymentConfig } from './deployment';
 import { ValidationError } from './errors';
+import { resolveExistingLocalOrBundledPath } from './paths';
 import { asRecord, isRecord, loadYaml, saveYaml } from './utils';
 
 export const DEFAULT_INVENTORY = 'inventory/instances.yaml';
@@ -36,9 +37,14 @@ export function inventoryTemplatePath(path?: string): string {
     return resolve(envPath);
   }
 
-  const templatePath = resolve(DEFAULT_TEMPLATE_INVENTORY);
-  if (existsSync(templatePath)) {
+  const templatePath = resolveExistingLocalOrBundledPath(DEFAULT_TEMPLATE_INVENTORY);
+  if (templatePath) {
     return templatePath;
+  }
+
+  const fallbackInventoryPath = resolveExistingLocalOrBundledPath(DEFAULT_INVENTORY);
+  if (fallbackInventoryPath) {
+    return fallbackInventoryPath;
   }
 
   return resolve(DEFAULT_INVENTORY);
