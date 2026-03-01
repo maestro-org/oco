@@ -6,6 +6,7 @@
 
 [![CI](https://img.shields.io/github/actions/workflow/status/maestro-org/oco/ci.yml?label=CI&logo=github&style=for-the-badge)](https://github.com/maestro-org/oco/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/openclaw-org-orchestrator?label=npm&logo=npm&style=for-the-badge)](https://www.npmjs.com/package/openclaw-org-orchestrator)
+[![Codecov](https://img.shields.io/codecov/c/github/maestro-org/oco?label=codecov&logo=codecov&style=for-the-badge)](https://codecov.io/gh/maestro-org/oco)
 [![License](https://img.shields.io/github/license/maestro-org/oco?label=license&style=for-the-badge)](./LICENSE)
 [![Discord](https://img.shields.io/badge/discord-join%20server-5865F2?logo=discord&style=for-the-badge)](https://discord.gg/SJgkEje7)
 
