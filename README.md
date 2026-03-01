@@ -4,7 +4,12 @@
   <img src="media/logo.png" alt="oco logo" width="400" />
 </p>
 
-Manages OpenClaw organizations with inventory-driven configuration, isolated runtime boundaries, and repeatable deployment workflows.
+[![CI](https://img.shields.io/github/actions/workflow/status/maestro-org/oco/ci.yml?label=CI&logo=github&style=for-the-badge)](https://github.com/maestro-org/oco/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/openclaw-org-orchestrator?label=npm&logo=npm&style=for-the-badge)](https://www.npmjs.com/package/openclaw-org-orchestrator)
+[![License](https://img.shields.io/github/license/maestro-org/oco?label=license&style=for-the-badge)](./LICENSE)
+[![Discord](https://img.shields.io/badge/discord-join%20server-5865F2?logo=discord&style=for-the-badge)](https://discord.gg/SJgkEje7)
+
+Manage OpenClaw organizations with inventory-driven configuration, isolated runtime boundaries, and repeatable deployment workflows.
 
 ## Features
 - Multi-instance orchestration from a single inventory.
@@ -155,6 +160,14 @@ Run org-scoped commands with the helper script:
 ./scripts/org.sh <org> runtime up --instance <instance-id>
 ./scripts/org.sh <org> health --instance <instance-id>
 ```
+
+## CI/CD
+- CI workflow (`.github/workflows/ci.yml`) runs typecheck, build, unit/integration tests, coverage generation, and dependency audit on push/PR.
+- Security workflow (`.github/workflows/codeql.yml`) runs GitHub CodeQL analysis on push/PR and weekly schedule.
+- Release workflow (`.github/workflows/release.yml`) publishes to npm when a GitHub Release is published.
+- Required secret for release: `NPM_TOKEN` (npm automation token with publish scope).
+- Optional secret for external coverage service uploads: `CODECOV_TOKEN`.
+- Setup details: `docs/CI_CD.md`.
 
 ## Recommended Functional Isolation
 Group by credential risk and write scope. For example:
