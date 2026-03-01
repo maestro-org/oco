@@ -101,16 +101,31 @@ jobs:
           PACKAGE_VERSION: ${{ steps.pack.outputs.package_version }}
           PACKAGE_DIGEST: ${{ steps.pack.outputs.digest }}
         run: |
+          set -euo pipefail
           ORG="${GITHUB_REPOSITORY%%/*}"
           TOKEN="${GH_ARTIFACT_METADATA_TOKEN:-$GITHUB_TOKEN}"
-          ARTIFACT_URL="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.tarball)"
+          PACKAGE_COORD="${PACKAGE_NAME}@${PACKAGE_VERSION}"
+
+          # Avoid inheriting npm publish auth for registry read operations.
+          unset NODE_AUTH_TOKEN
+          unset NPM_CONFIG_USERCONFIG
+
+          ARTIFACT_URL=""
+          for attempt in 1 2 3 4 5 6; do
+            ARTIFACT_URL="$(npm view "${PACKAGE_COORD}" dist.tarball --registry=https://registry.npmjs.org 2>/dev/null || true)"
+            if [ -n "$ARTIFACT_URL" ]; then
+              break
+            fi
+            echo "npm registry has not indexed ${PACKAGE_COORD} yet (attempt ${attempt}/6). Retrying in 10s..."
+            sleep 10
+          done
 
           if [ -z "$ARTIFACT_URL" ]; then
-            echo "Unable to resolve npm tarball URL from registry for ${PACKAGE_NAME}@${PACKAGE_VERSION}."
+            echo "Unable to resolve npm tarball URL from registry for ${PACKAGE_COORD} after retries."
             exit 1
           fi
 
-          curl -L \
+          curl --fail-with-body -L \
             -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${TOKEN}" \
