@@ -17,6 +17,7 @@ This repository uses GitHub Actions for continuous integration, security analysi
   - Runs when a GitHub Release is published.
   - Re-checks quality gates (`bun run check` + `bun run build`).
   - Publishes the package to npm.
+  - Creates a GitHub linked artifact metadata record for the published npm tarball.
 
 ## Required Secrets
 - `NPM_TOKEN` (required)
@@ -26,6 +27,9 @@ This repository uses GitHub Actions for continuous integration, security analysi
 - `CODECOV_TOKEN` (optional)
   - If set, coverage is uploaded to Codecov.
   - If unset, CI still uploads the coverage artifact to GitHub Actions.
+- `GH_ARTIFACT_METADATA_TOKEN` (optional)
+  - Fine-grained token fallback for the Artifact Metadata API when org policies restrict `GITHUB_TOKEN`.
+  - If unset, release workflow uses `GITHUB_TOKEN`.
 
 ## Release Flow
 1. Update `package.json` version.

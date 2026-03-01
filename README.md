@@ -173,9 +173,9 @@ Run org-scoped commands with the helper script:
 ## CI/CD
 - CI workflow (`.github/workflows/ci.yml`) runs typecheck, build, unit/integration tests, coverage generation, and dependency audit on push/PR.
 - Security workflow (`.github/workflows/codeql.yml`) runs GitHub CodeQL analysis on push/PR and weekly schedule.
-- Release workflow (`.github/workflows/release.yml`) publishes to npm when a GitHub Release is published.
+- Release workflow (`.github/workflows/release.yml`) publishes to npm and registers GitHub linked artifact metadata when a GitHub Release is published.
 - Required secret for release: `NPM_TOKEN` (npm automation token with publish scope).
-- Optional secret for external coverage service uploads: `CODECOV_TOKEN`.
+- Optional secrets: `CODECOV_TOKEN`, `GH_ARTIFACT_METADATA_TOKEN`.
 - Setup details: `docs/CI_CD.md`.
 
 ## Recommended Functional Isolation

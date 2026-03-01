@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   id-token: write
+  artifact-metadata: write
 
 jobs:
   npm-publish:
@@ -37,11 +38,13 @@ jobs:
       - name: Build package
         run: bun run build
 
-      - name: Verify npm package contents
+      - name: Pack and verify npm package contents
+        id: pack
         run: |
-          PACK_JSON="$(npm pack --dry-run --json)"
+          PACK_JSON="$(npm pack --json)"
           echo "$PACK_JSON"
-          echo "$PACK_JSON" | node -e '
+
+          TARBALL="$(echo "$PACK_JSON" | node -e '
             const fs = require("node:fs");
             const raw = fs.readFileSync(0, "utf8").trim();
             const payload = JSON.parse(raw);
@@ -57,7 +60,24 @@ jobs:
                 process.exit(1);
               }
             }
-          '
+            process.stdout.write(payload[0]?.filename ?? "");
+          ')"
+
+          if [ -z "$TARBALL" ] || [ ! -f "$TARBALL" ]; then
+            echo "Unable to locate generated npm tarball from npm pack output."
+            exit 1
+          fi
+
+          PACKAGE_NAME="$(node -p "require('./package.json').name")"
+          PACKAGE_VERSION="$(node -p "require('./package.json').version")"
+          DIGEST="sha256:$(sha256sum "$TARBALL" | awk '{print $1}')"
+
+          {
+            echo "tarball=$TARBALL"
+            echo "package_name=$PACKAGE_NAME"
+            echo "package_version=$PACKAGE_VERSION"
+            echo "digest=$DIGEST"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Validate npm token
         env:
@@ -71,4 +91,40 @@ jobs:
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish --provenance --access public
+        run: npm publish "${{ steps.pack.outputs.tarball }}" --provenance --access public
+
+      - name: Create GitHub linked artifact metadata
+        env:
+          GH_ARTIFACT_METADATA_TOKEN: ${{ secrets.GH_ARTIFACT_METADATA_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PACKAGE_NAME: ${{ steps.pack.outputs.package_name }}
+          PACKAGE_VERSION: ${{ steps.pack.outputs.package_version }}
+          PACKAGE_DIGEST: ${{ steps.pack.outputs.digest }}
+        run: |
+          ORG="${GITHUB_REPOSITORY%%/*}"
+          TOKEN="${GH_ARTIFACT_METADATA_TOKEN:-$GITHUB_TOKEN}"
+          ARTIFACT_URL="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.tarball)"
+
+          if [ -z "$ARTIFACT_URL" ]; then
+            echo "Unable to resolve npm tarball URL from registry for ${PACKAGE_NAME}@${PACKAGE_VERSION}."
+            exit 1
+          fi
+
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${TOKEN}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "https://api.github.com/orgs/${ORG}/artifacts/metadata/storage-record" \
+            -d @- <<EOF
+          {
+            "name": "${PACKAGE_NAME}",
+            "version": "${PACKAGE_VERSION}",
+            "digest": "${PACKAGE_DIGEST}",
+            "artifact_url": "${ARTIFACT_URL}",
+            "registry_url": "https://registry.npmjs.org",
+            "repository": "${PACKAGE_NAME}",
+            "status": "active",
+            "github_repository": "${GITHUB_REPOSITORY}"
+          }
+          EOF
