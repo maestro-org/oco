@@ -1,10 +1,18 @@
 # OpenClaw Orchestrator
 
-<p align="left">
+<p align="center">
   <img src="media/logo.png" alt="oco logo" width="400" />
 </p>
 
-Manages OpenClaw organizations with inventory-driven configuration, isolated runtime boundaries, and repeatable deployment workflows.
+<p align="center">
+  <a href="https://github.com/maestro-org/oco/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/maestro-org/oco/ci.yml?label=CI&logo=github&style=for-the-badge" alt="CI" /></a>
+  <a href="https://www.npmjs.com/package/@maestro-org/oco"><img src="https://img.shields.io/npm/v/%40maestro-org%2Foco?label=npm&logo=npm&style=for-the-badge" alt="npm" /></a>
+  <a href="https://codecov.io/gh/maestro-org/oco"><img src="https://img.shields.io/codecov/c/github/maestro-org/oco?label=codecov&logo=codecov&style=for-the-badge" alt="Codecov" /></a>
+  <a href="https://discord.gg/SJgkEje7"><img src="https://img.shields.io/badge/discord-join%20server-5865F2?logo=discord&style=for-the-badge" alt="Discord" /></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/github/license/maestro-org/oco?label=license&style=for-the-badge" alt="License" /></a>
+</p>
+
+Manage OpenClaw organizations with inventory-driven configuration, isolated runtime boundaries, and repeatable deployment workflows.
 
 ## Features
 - Multi-instance orchestration from a single inventory.
@@ -23,24 +31,30 @@ See `docs/INTEGRATIONS_AND_USE_CASES.md` for details.
 
 ## Quick Start
 
-### 1. Install
+### Install
+Global install (recommended):
 ```bash
-git clone https://github.com/<your-org>/oco.git
-cd oco
-bun install
-bun run install:global
+npm install -g @maestro-org/oco
 oco --help
+```
+
+Run without installing globally:
+```bash
+npx @maestro-org/oco --help
 ```
 
 If `oco` is not found:
 ```bash
-echo 'export PATH="$HOME/.bun/bin:$PATH"' >> ~/.zshrc
+echo 'export PATH="$(npm config get prefix)/bin:$PATH"' >> ~/.zshrc
 ```
 
-### 2. Initialize Inventory
+### Initialize Inventory
 ```bash
 oco inventory init
+# or: npx @maestro-org/oco inventory init
 ```
+
+When installed from npm, `oco inventory init` uses the bundled inventory template if no local template file exists yet.
 
 Edit `inventory/instances.local.yaml` (recommended) for:
 - organization metadata
@@ -61,7 +75,7 @@ Path resolution order:
 3. `inventory/instances.local.yaml`
 4. `inventory/instances.yaml`
 
-### 3. Configure Secrets
+### Configure Secrets
 ```bash
 cp .env.example .env
 ```
@@ -92,7 +106,7 @@ For multi-org isolation, keep secrets in separate files (for example `.env.acme`
 ORG_ENV_FILE=.env.acme ./scripts/org.sh acme validate
 ```
 
-### 4. Choose Deployment Target
+### Choose Deployment Target
 Set the org default in inventory:
 ```yaml
 organization:
@@ -116,7 +130,7 @@ Inspect the resolved target:
 oco deployment target --instance core-human
 ```
 
-### 5. Validate and Deploy
+### Validate and Deploy
 ```bash
 oco validate
 oco policy validate
@@ -128,7 +142,7 @@ oco health --instance core-human
 
 `oco compose ...` and `oco runtime ...` are provider-aware and automatically use Docker Compose or Kubernetes based on org config/env.
 
-### 5. Manage Agents and Templates
+### Manage Agents and Templates
 ```bash
 oco agent list --instance core-human
 
@@ -176,6 +190,3 @@ Comprehensive documentation is available in `docs/`, including deployment steps,
 git status --short --ignored
 rg -n "sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|BEGIN (RSA|EC|OPENSSH|PGP|DSA)? ?PRIVATE KEY" .
 ```
-
-## License
-MIT (`LICENSE`)

@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, test } from 'bun:test';
@@ -7,6 +7,7 @@ import { ValidationError } from '../src/errors';
 import {
   initializeInventory,
   inventoryPath,
+  inventoryTemplatePath,
   loadInventoryFile,
   validateInventory,
 } from '../src/inventory';
@@ -139,6 +140,30 @@ describe('inventory', () => {
         delete process.env.OCO_INVENTORY_PATH;
       } else {
         process.env.OCO_INVENTORY_PATH = previousEnv;
+      }
+      process.chdir(previousCwd);
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  test('inventoryTemplatePath falls back to bundled template when local files are absent', () => {
+    const root = mkdtempSync(join(tmpdir(), 'oco-inv-template-'));
+    const previousCwd = process.cwd();
+    const previousEnv = process.env.OCO_INVENTORY_TEMPLATE;
+
+    try {
+      delete process.env.OCO_INVENTORY_TEMPLATE;
+      process.chdir(root);
+
+      const resolved = inventoryTemplatePath();
+      expect(existsSync(resolved)).toBeTrue();
+      expect(resolved.includes(join('inventory', 'instances.example.yaml'))).toBeTrue();
+      expect(resolved.startsWith(root)).toBeFalse();
+    } finally {
+      if (previousEnv === undefined) {
+        delete process.env.OCO_INVENTORY_TEMPLATE;
+      } else {
+        process.env.OCO_INVENTORY_TEMPLATE = previousEnv;
       }
       process.chdir(previousCwd);
       rmSync(root, { recursive: true, force: true });

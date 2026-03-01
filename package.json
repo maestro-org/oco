@@ -1,18 +1,39 @@
 {
-  "name": "openclaw-org-orchestrator",
+  "name": "@maestro-org/oco",
   "version": "0.2.0",
   "description": "TypeScript CLI orchestrator for multi-instance OpenClaw deployments",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/maestro-org/oco.git"
+  },
+  "homepage": "https://github.com/maestro-org/oco#readme",
+  "bugs": {
+    "url": "https://github.com/maestro-org/oco/issues"
+  },
   "type": "commonjs",
   "packageManager": "bun@1.3.9",
   "bin": {
     "oco": "dist/cli.js"
   },
+  "files": [
+    "dist/**/*",
+    "inventory/instances.example.yaml",
+    "inventory/instances.yaml",
+    "inventory/org.instances.example.yaml",
+    "inventory/schema.json",
+    "templates/souls/**/*",
+    "templates/tools/**/*",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "bun test",
+    "test:coverage": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov --coverage-dir=coverage",
     "check": "bun run typecheck && bun test",
+    "audit": "bun audit",
     "clean": "rm -rf dist",
     "prepare": "bun run build",
     "install:global": "bun run build && mkdir -p \"$HOME/.bun/bin\" && ln -sf \"$PWD/dist/cli.js\" \"$HOME/.bun/bin/oco\" && chmod +x \"$HOME/.bun/bin/oco\""

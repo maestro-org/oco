@@ -19,7 +19,7 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
 - Update relevant templates and example files whenever configuration options change.
 - Anytime we need to run a new custom command or script to add a feature or monitor an agent, if it's generalizable, add it to the CLI and document it in the README. The CLI should be the primary interface for interacting with the repo, and custom scripts should be added to the CLI if they are generally useful for managing agents or instances.
 
-## Rollout and Test Changes
+## Rollout Agent Changes With Care
 
 - Automatically restart and validate after any inventory config change.
 - Run the standard rollout sequence:
@@ -48,6 +48,10 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
   - Models
   - Environment variables
 - Never commit any sensitive information to the repo, including API keys, secrets, or personally identifiable information. Use environment variables or secure vaults to manage sensitive data.
+
+## CI Updates And Testing
+
+- New features or changes should include updates to CI workflows to ensure that the new code is properly tested and validated before being merged. This includes adding new test cases, updating existing tests, and ensuring that all tests pass successfully.
 
 ## Useful References
 
