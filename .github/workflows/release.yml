@@ -116,6 +116,7 @@ jobs:
         run: |
           set -euo pipefail
           ORG="${GITHUB_REPOSITORY%%/*}"
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
           TOKEN="${GH_ARTIFACT_METADATA_TOKEN:-$GITHUB_TOKEN}"
           PACKAGE_COORD="${PACKAGE_NAME}@${PACKAGE_VERSION}"
 
@@ -153,6 +154,6 @@ jobs:
             "registry_url": "https://registry.npmjs.org",
             "repository": "${PACKAGE_NAME}",
             "status": "active",
-            "github_repository": "${GITHUB_REPOSITORY}"
+            "github_repository": "${REPO_NAME}"
           }
           EOF
