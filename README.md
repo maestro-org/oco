@@ -8,7 +8,7 @@
   <a href="https://github.com/maestro-org/oco/actions/workflows/ci.yml" target="_blank"><img src="https://img.shields.io/github/actions/workflow/status/maestro-org/oco/ci.yml?label=CI&logo=github&style=for-the-badge" alt="CI" /></a>
   <a href="https://www.npmjs.com/package/@maestro-org/oco" target="_blank"><img src="https://img.shields.io/npm/v/%40maestro-org%2Foco?label=npm&logo=npm&style=for-the-badge" alt="npm" /></a>
   <a href="https://codecov.io/gh/maestro-org/oco" target="_blank"><img src="https://img.shields.io/codecov/c/github/maestro-org/oco?label=codecov&logo=codecov&style=for-the-badge" alt="Codecov" /></a>
-  <a href="https://discord.gg/SJgkEje7" target="_blank"><img src="https://img.shields.io/badge/discord-join%20server-5865F2?logo=discord&style=for-the-badge" alt="Discord" /></a>
+  <a href="https://discord.gg/SJgkEje7" target="_blank"><img src="https://img.shields.io/discord/950173135838273556?label=discord&logo=discord&style=for-the-badge" alt="Discord" /></a>
   <a href="./LICENSE" target="_blank"><img src="https://img.shields.io/github/license/maestro-org/oco?label=license&style=for-the-badge" alt="License" /></a>
 </p>
 
