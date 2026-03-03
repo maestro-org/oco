@@ -48,6 +48,24 @@ oco pairing list --instance <instance-id> --channel telegram --account support -
 oco pairing approve --instance <instance-id> --channel telegram --account support --code <PAIRING_CODE>
 ```
 
+Optional read-only group mode (enabled accounts can read group traffic but never reply in groups):
+
+```json5
+{
+  plugins: {
+    entries: {
+      "telegram-group-allowlist-guard": {
+        enabled: true,
+        config: {
+          enabledAccounts: ["support"],
+          blockAllGroupReplies: true,
+        },
+      },
+    },
+  },
+}
+```
+
 ## 2. Discord Setup
 
 1. Create app + bot in Discord Developer Portal.

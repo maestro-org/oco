@@ -1,7 +1,7 @@
 {
   "id": "telegram-group-allowlist-guard",
   "name": "Telegram Group Allowlist Guard",
-  "description": "Allows group read/context ingestion, blocks replies for non-allowlisted senders, and blocks tool execution unless the latest triggering sender is allowlisted.",
+  "description": "Allows group read/context ingestion, supports an optional read-only group mode, and blocks unsafe group-triggered replies/tool execution.",
   "channels": ["telegram"],
   "configSchema": {
     "type": "object",
@@ -22,6 +22,9 @@
       },
       "stateAgentsDir": {
         "type": "string"
+      },
+      "blockAllGroupReplies": {
+        "type": "boolean"
       }
     }
   },
@@ -45,6 +48,10 @@
     "stateAgentsDir": {
       "label": "State Agents Directory",
       "help": "Path to agent session indexes used to hydrate known groups."
+    },
+    "blockAllGroupReplies": {
+      "label": "Block All Group Replies",
+      "help": "When true, enabled accounts can read groups but never send group replies or run group-triggered tools."
     }
   }
 }

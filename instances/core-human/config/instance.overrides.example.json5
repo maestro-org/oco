@@ -30,6 +30,14 @@
       telegram: {
         enabled: true,
       },
+      // Optional: keep selected telegram accounts read-only in groups (ingest only, no replies/tool runs from group threads).
+      "telegram-group-allowlist-guard": {
+        enabled: true,
+        config: {
+          enabledAccounts: ["drichardson"],
+          blockAllGroupReplies: true,
+        },
+      },
     },
   },
   gateway: {
