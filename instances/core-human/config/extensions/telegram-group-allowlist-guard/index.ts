@@ -8,6 +8,7 @@ type GuardPluginConfig = {
   awarenessSenderAgeMs?: number;
   awarenessMaxGroups?: number;
   stateAgentsDir?: string;
+  blockAllGroupReplies?: boolean;
 };
 
 type LastInboundSender = {
@@ -50,6 +51,12 @@ const DEFAULT_MAX_SENDER_AGE_MS = 5 * 60 * 1000;
 const DEFAULT_AWARENESS_SENDER_AGE_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_AWARENESS_MAX_GROUPS = 8;
 const DEFAULT_STATE_AGENTS_DIR = "/var/lib/openclaw/state/agents";
+const GROUP_NO_REPLY_SYSTEM_PROMPT = [
+  "Telegram policy mode: read-only group monitoring is enabled.",
+  "Do not produce any user-visible group reply in this run.",
+  "Return exactly NO_REPLY.",
+  "Do not add any other text, punctuation, markdown, tags, or explanations.",
+].join("\n");
 const lastInboundByConversation = new Map<string, LastInboundSender>();
 const groupAwarenessByConversation = new Map<string, GroupAwareness>();
 
@@ -443,6 +450,7 @@ function buildTelegramAwarenessContext(
   awarenessSenderAgeMs: number,
   awarenessMaxGroups: number,
   stateAgentsDir: string,
+  blockAllGroupReplies: boolean,
 ): string | undefined {
   cleanupExpiredGroupAwareness(awarenessSenderAgeMs);
 
@@ -476,8 +484,13 @@ function buildTelegramAwarenessContext(
 
   const lines = [
     "Telegram policy context (plugin-enforced):",
-    "- Group messages from non-allowlist users are visible, but replies and tool calls from those triggers are blocked.",
-    "- Group messages from allowlisted users may receive replies even without mentions.",
+    "- Group messages remain visible for context ingestion.",
+    blockAllGroupReplies
+      ? "- Group replies are disabled for this account set. Bots will never send messages to group chats."
+      : "- Group messages from non-allowlist users are visible, but replies and tool calls from those triggers are blocked.",
+    blockAllGroupReplies
+      ? "- Group-triggered tool execution is disabled. Run follow-up actions from DM sessions."
+      : "- Group messages from allowlisted users may receive replies even without mentions.",
     "- Known group snippets below come from live inbound updates and are more reliable than sessions_list for legacy group keys.",
   ];
 
@@ -587,6 +600,7 @@ export default function register(api: OpenClawPluginApi): void {
       : DEFAULT_AWARENESS_MAX_GROUPS;
   const stateAgentsDir =
     asNonEmptyString(pluginConfig.stateAgentsDir) ?? DEFAULT_STATE_AGENTS_DIR;
+  const blockAllGroupReplies = pluginConfig.blockAllGroupReplies === true;
 
   api.on("message_received", (event, ctx) => {
     if (ctx.channelId !== "telegram") {
@@ -643,12 +657,33 @@ export default function register(api: OpenClawPluginApi): void {
     }
 
     const parsedSession = parseTelegramSessionKey(sessionKey);
-    if (parsedSession.kind !== "direct") {
+    const accountId =
+      parsedSession.accountId ??
+      asNonEmptyString(parsedSession.agentId) ??
+      resolveDefaultEnabledAccount(enabledAccounts);
+    if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
       return;
     }
 
-    const accountId = parsedSession.accountId ?? resolveDefaultEnabledAccount(enabledAccounts);
-    if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
+    if (parsedSession.kind === "group") {
+      if (!blockAllGroupReplies) {
+        return;
+      }
+      return {
+        // Hard override for group sessions to avoid relying on model compliance
+        // with lower-priority prepend context alone.
+        systemPrompt: GROUP_NO_REPLY_SYSTEM_PROMPT,
+        prependContext: [
+          "Telegram policy context (plugin-enforced):",
+          "- This is a Telegram group session for an account in read-only group mode.",
+          "- Group messages remain visible for context ingestion.",
+          "- Do not send any visible group reply.",
+          "- Always return exactly NO_REPLY.",
+        ].join("\n"),
+      };
+    }
+
+    if (parsedSession.kind !== "direct") {
       return;
     }
 
@@ -659,6 +694,7 @@ export default function register(api: OpenClawPluginApi): void {
       awarenessSenderAgeMs,
       awarenessMaxGroups,
       stateAgentsDir,
+      blockAllGroupReplies,
     );
     if (!awarenessContext) {
       return;
@@ -696,6 +732,16 @@ export default function register(api: OpenClawPluginApi): void {
       return;
     }
 
+    if (blockAllGroupReplies) {
+      api.logger.info?.(
+        `telegram-group-allowlist-guard: blocked tool call in ${sessionKey} (group replies disabled for ${accountId})`,
+      );
+      return {
+        block: true,
+        blockReason: "tool execution blocked: group replies are disabled for this account",
+      };
+    }
+
     if (!cached || !cached.senderId) {
       api.logger.info?.(
         `telegram-group-allowlist-guard: blocked tool call in ${sessionKey} (missing sender context)`,
@@ -722,16 +768,11 @@ export default function register(api: OpenClawPluginApi): void {
     if (ctx.channelId !== "telegram") {
       return;
     }
-    const accountId = asNonEmptyString(ctx.accountId);
-    if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
-      return;
-    }
 
     const rawContent = asNonEmptyString(event.content) ?? "";
     if (isReasoningOnlyMessage(rawContent)) {
-      api.logger.info?.(
-        `telegram-group-allowlist-guard: cancelled reasoning-only message for ${accountId}`,
-      );
+      const accountLabel = asNonEmptyString(ctx.accountId) ?? "unknown";
+      api.logger.info?.(`telegram-group-allowlist-guard: cancelled reasoning-only message for ${accountLabel}`);
       return { cancel: true };
     }
 
@@ -754,11 +795,32 @@ export default function register(api: OpenClawPluginApi): void {
     const toTarget = canonicalConversationTarget(toTargetRaw);
 
     const parsedTo = parseTelegramTarget(toTargetRaw);
+    const metadata = asRecord(event.metadata);
+    let accountId =
+      asNonEmptyString(ctx.accountId)?.toLowerCase() ??
+      asNonEmptyString(metadata?.accountId)?.toLowerCase();
+    if (!accountId && parsedTo.kind === "group") {
+      cleanupExpiredContext(maxSenderAgeMs);
+      accountId =
+        findLatestInboundForTarget(toTarget, maxSenderAgeMs)?.accountId ??
+        resolveDefaultEnabledAccount(enabledAccounts);
+    }
+    if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
+      return;
+    }
+
     if (parsedTo.kind !== "group") {
       if (hasSanitizedContentOverride) {
         return { content: sanitizedContent };
       }
       return;
+    }
+
+    if (blockAllGroupReplies) {
+      api.logger.info?.(
+        `telegram-group-allowlist-guard: cancelled group send for ${accountId} -> ${toTarget} (group replies disabled)`,
+      );
+      return { cancel: true };
     }
 
     cleanupExpiredContext(maxSenderAgeMs);

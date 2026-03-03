@@ -81,6 +81,39 @@ describe('telegram-group-allowlist-guard', () => {
     expect(result).toBe(undefined);
   });
 
+  test('cancels group reply when blockAllGroupReplies is enabled even for allowlisted sender', async () => {
+    const { received, sending } = createHarness({
+      enabledAccounts: ['primary_bot'],
+      blockAllGroupReplies: true,
+    });
+
+    await received(
+      {
+        from: 'telegram:group:-5114267406',
+        metadata: {
+          to: 'telegram:-5114267406',
+          senderId: '2222222222',
+        },
+      },
+      {
+        channelId: 'telegram',
+        accountId: 'primary_bot',
+      },
+    );
+
+    const result = await sending(
+      {
+        to: 'telegram:-5114267406',
+      },
+      {
+        channelId: 'telegram',
+        accountId: 'primary_bot',
+      },
+    );
+
+    expect(result).toEqual({ cancel: true });
+  });
+
   test('cancels group reply when last sender is not allowlisted', async () => {
     const { received, sending } = createHarness({
       enabledAccounts: ['primary_bot'],
@@ -356,6 +389,43 @@ describe('telegram-group-allowlist-guard', () => {
     expect(result).toBe(undefined);
   });
 
+  test('blocks group tool execution when blockAllGroupReplies is enabled even for allowlisted sender', async () => {
+    const { received, beforeToolCall } = createHarness({
+      enabledAccounts: ['primary_bot'],
+      blockAllGroupReplies: true,
+    });
+
+    await received(
+      {
+        from: 'telegram:group:-5114267406',
+        metadata: {
+          to: 'telegram:-5114267406',
+          senderId: '2222222222',
+        },
+      },
+      {
+        channelId: 'telegram',
+        accountId: 'primary_bot',
+      },
+    );
+
+    const result = await beforeToolCall(
+      {
+        toolName: 'web_search',
+        params: { query: 'latest updates' },
+      },
+      {
+        toolName: 'web_search',
+        sessionKey: 'agent:primary_bot:telegram:group:-5114267406',
+      },
+    );
+
+    expect(result).toEqual({
+      block: true,
+      blockReason: 'tool execution blocked: group replies are disabled for this account',
+    });
+  });
+
   test('does not block tool execution in direct sessions', async () => {
     const { beforeToolCall } = createHarness({
       enabledAccounts: ['primary_bot'],
@@ -515,6 +585,31 @@ describe('telegram-group-allowlist-guard', () => {
     expect(prependContext.includes('latest observed text:')).toBe(true);
     expect(prependContext.includes('Did you see this latest group message?')).toBe(true);
     expect(prependContext.includes("answer from it directly without calling sessions_list first")).toBe(true);
+  });
+
+  test('injects group no-reply context when blockAllGroupReplies is enabled', async () => {
+    const { beforePromptBuild } = createHarness({
+      enabledAccounts: ['primary_bot'],
+      blockAllGroupReplies: true,
+    });
+
+    const result = await beforePromptBuild(
+      {
+        prompt: 'group prompt',
+        messages: [],
+      },
+      {
+        sessionKey: 'agent:primary_bot:telegram:group:-5114267406',
+      },
+    );
+
+    expect(result).toBeDefined();
+    const systemPrompt = String((result as { systemPrompt?: unknown }).systemPrompt ?? '');
+    expect(systemPrompt.includes('Return exactly NO_REPLY.')).toBe(true);
+    expect(systemPrompt.includes('Do not produce any user-visible group reply')).toBe(true);
+    const prependContext = String((result as { prependContext?: unknown }).prependContext ?? '');
+    expect(prependContext.includes('read-only group mode')).toBe(true);
+    expect(prependContext.includes('Always return exactly NO_REPLY')).toBe(true);
   });
 
   test('does not inject awareness context for group sessions', async () => {
