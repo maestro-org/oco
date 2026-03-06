@@ -25,7 +25,7 @@ Manage OpenClaw organizations with inventory-driven configuration, isolated runt
 
 ## Integrations
 - Channels: Telegram, Discord.
-- Tool/API workflows: GitHub, Notion, Better Stack, web search (Brave).
+- Tool/API workflows: GitHub, Notion, Better Stack, web search (Brave), Google Calendar (via `gws`).
 
 See `docs/INTEGRATIONS_AND_USE_CASES.md` for details.
 
@@ -180,6 +180,8 @@ Detailed rollout: `docs/E2E_OCO_DISCORD_FUNCTIONAL_AGENTS.md`
 
 ## Documentation
 Comprehensive documentation is available in `docs/`, including deployment steps, usage examples, and reusable templates.
+
+For Google Calendar rollout via `gws`, see `docs/GOOGLE_CALENDAR_GWS_ROLLOUT.md`.
 
 ## Security Best Practices
 - Keep secrets in local `.env` only.

@@ -53,6 +53,10 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
 
 - New features or changes should include updates to CI workflows to ensure that the new code is properly tested and validated before being merged. This includes adding new test cases, updating existing tests, and ensuring that all tests pass successfully.
 
+## Productionization
+
+- New features should be generalizable and reusable for other agents and use cases. Avoid hardcoding values or creating one-off scripts that are not easily adaptable. If a new script or command is created to manage a feature, consider whether it can be added to the CLI for broader use.
+
 ## Useful References
 
 - Refer to OpenClaw docs for features, configuration options, best practices and security guidelines: https://docs.openclaw.ai/

@@ -17,6 +17,7 @@ This document summarizes supported integration surfaces and where each fits in a
 | Notion API | Tool/API | Read/write docs, page updates, internal knowledge operations | `NOTION_API_KEY` |
 | Better Stack API | Tool/API | Alert triage, incident analysis, remediation planning | `BETTERSTACK_API_TOKEN` |
 | Brave Search API | Tool/API | Research and source discovery | `BRAVE_API_KEY` |
+| Google Calendar API (via `gws`) | Tool/API | Event creation/scheduling workflows | Service-account key + delegated bot user (`GWS_*`, `GOOGLE_WORKSPACE_CLI_*`; legacy `DAVIS_GWS_*` accepted) |
 
 ## 3. Isolation Pattern (Recommended)
 
