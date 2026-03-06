@@ -1,9 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-KEY_FILE="${DAVIS_GWS_SERVICE_ACCOUNT_KEY_FILE:-/var/lib/openclaw/state/secrets/davis-gws-service-account.json}"
-SUBJECT="${DAVIS_GWS_IMPERSONATED_EMAIL:-}"
-SCOPE="${DAVIS_GWS_SCOPE:-https://www.googleapis.com/auth/calendar.events}"
+DEFAULT_KEY_FILE="/var/lib/openclaw/state/secrets/gws-service-account.json"
+LEGACY_DEFAULT_KEY_FILE="/var/lib/openclaw/state/secrets/davis-gws-service-account.json"
+KEY_FILE="${GWS_SERVICE_ACCOUNT_KEY_FILE:-${DAVIS_GWS_SERVICE_ACCOUNT_KEY_FILE:-}}"
+SUBJECT="${GWS_IMPERSONATED_EMAIL:-${DAVIS_GWS_IMPERSONATED_EMAIL:-}}"
+SCOPE="${GWS_SCOPE:-${DAVIS_GWS_SCOPE:-https://www.googleapis.com/auth/calendar.events}}"
+
+if [[ -z "${KEY_FILE}" ]]; then
+  if [[ -f "${DEFAULT_KEY_FILE}" ]]; then
+    KEY_FILE="${DEFAULT_KEY_FILE}"
+  else
+    KEY_FILE="${LEGACY_DEFAULT_KEY_FILE}"
+  fi
+fi
 
 if [[ ! -f "${KEY_FILE}" ]]; then
   echo "Error: Service-account key file not found: ${KEY_FILE}" >&2
@@ -11,7 +21,7 @@ if [[ ! -f "${KEY_FILE}" ]]; then
 fi
 
 if [[ -z "${SUBJECT}" ]]; then
-  echo "Error: DAVIS_GWS_IMPERSONATED_EMAIL is required." >&2
+  echo "Error: GWS_IMPERSONATED_EMAIL is required (or legacy DAVIS_GWS_IMPERSONATED_EMAIL)." >&2
   exit 1
 fi
 

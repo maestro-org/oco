@@ -4,10 +4,10 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  davis-gws-calendar-insert.sh --summary "<text>" --start "<RFC3339>" --end "<RFC3339>" [options]
+  gws-calendar-insert.sh --summary "<text>" --start "<RFC3339>" --end "<RFC3339>" [options]
 
 Options:
-  --calendar-id "<id>"          Defaults to DAVIS_GWS_CALENDAR_ID or "primary"
+  --calendar-id "<id>"          Defaults to GWS_CALENDAR_ID or "primary"
   --timezone "<tz>"             Example: America/Los_Angeles
   --location "<text>"
   --description "<text>"
@@ -16,7 +16,7 @@ Options:
   -h, --help
 
 Example:
-  davis-gws-calendar-insert.sh \
+  gws-calendar-insert.sh \
     --summary "Design review" \
     --start "2026-03-08T17:00:00-08:00" \
     --end "2026-03-08T17:30:00-08:00" \
@@ -29,7 +29,7 @@ is_rfc3339() {
   [[ "${value}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$ ]]
 }
 
-CALENDAR_ID="${DAVIS_GWS_CALENDAR_ID:-primary}"
+CALENDAR_ID="${GWS_CALENDAR_ID:-${DAVIS_GWS_CALENDAR_ID:-primary}}"
 SUMMARY=""
 START=""
 END=""
@@ -105,7 +105,7 @@ if ! is_rfc3339 "${END}"; then
   exit 1
 fi
 
-TOKEN_SCRIPT="/var/lib/openclaw/config/scripts/davis-gws-access-token.sh"
+TOKEN_SCRIPT="${GWS_ACCESS_TOKEN_SCRIPT:-/var/lib/openclaw/config/scripts/gws-access-token.sh}"
 ACCESS_TOKEN="$("${TOKEN_SCRIPT}")"
 
 export CALENDAR_ID SUMMARY START END TIMEZONE LOCATION DESCRIPTION ATTENDEES CONFERENCE_DATA
