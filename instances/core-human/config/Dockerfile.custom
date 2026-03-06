@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1.7
+
+FROM rust:1.90-bookworm AS gws-builder
+
+ARG GWS_GIT_REF=v0.7.0
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates git pkg-config libssl-dev \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/googleworkspace/cli.git /tmp/gws \
+  && cd /tmp/gws \
+  && git checkout "${GWS_GIT_REF}" \
+  && cargo install --locked --path . --bin gws \
+  && rm -rf /tmp/gws
+
+FROM ghcr.io/openclaw/openclaw:2026.2.22
+
+COPY --from=gws-builder /usr/local/cargo/bin/gws /usr/local/bin/gws
+
+RUN gws --version
