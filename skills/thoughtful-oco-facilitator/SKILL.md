@@ -7,7 +7,7 @@ description: Repository governance and rollout guardrails for OCO builders. Use 
 
 ## Overview
 
-Apply a consistent operating checklist for OCO repo changes so configuration, docs, and runtime health stay aligned.
+Apply a consistent operating checklist for OCO repo changes so configuration, docs, and runtime health stay aligned. Continuously improve this skill with new best practices and checklist items as we learn from real world usage and changes. The goal is to maintain a high standard of quality, security, and reliability for all OCO builders while making the process of contributing and deploying as smooth as possible.
 
 ## Propagate Through Repo
 
@@ -19,7 +19,7 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
 - Update relevant templates and example files whenever configuration options change.
 - Anytime we need to run a new custom command or script to add a feature or monitor an agent, if it's generalizable, add it to the CLI and document it in the README. The CLI should be the primary interface for interacting with the repo, and custom scripts should be added to the CLI if they are generally useful for managing agents or instances.
 
-## Rollout and Test Changes
+## Rollout Agent Changes With Care
 
 - Automatically restart and validate after any inventory config change.
 - Run the standard rollout sequence:
@@ -49,6 +49,14 @@ Apply a consistent operating checklist for OCO repo changes so configuration, do
   - Environment variables
 - Never commit any sensitive information to the repo, including API keys, secrets, or personally identifiable information. Use environment variables or secure vaults to manage sensitive data.
 
-## Security Is a Top Priority
+## CI Updates And Testing
 
-- Refer to the primarily OpenClaw docs for features, configuration options, best practices and security guidelines: https://docs.openclaw.ai/
+- New features or changes should include updates to CI workflows to ensure that the new code is properly tested and validated before being merged. This includes adding new test cases, updating existing tests, and ensuring that all tests pass successfully.
+
+## Productionization
+
+- New features should be generalizable and reusable for other agents and use cases. Avoid hardcoding values or creating one-off scripts that are not easily adaptable. If a new script or command is created to manage a feature, consider whether it can be added to the CLI for broader use.
+
+## Useful References
+
+- Refer to OpenClaw docs for features, configuration options, best practices and security guidelines: https://docs.openclaw.ai/
