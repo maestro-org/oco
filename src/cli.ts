@@ -2,6 +2,8 @@
 
 import { Command } from 'commander';
 import { addAgent, listAgents, removeAgent } from './agents';
+import { startAdminApiServer } from './admin/api';
+import { devDown, devLogs, devUp, stackDown, stackStatus, stackUp } from './admin/stack';
 import { OcoError } from './errors';
 import {
   findInstance,
@@ -56,7 +58,7 @@ function registerRuntimeCommands(
   }
 }
 
-function run(): void {
+async function run(): Promise<void> {
   const program = new Command();
 
   program
@@ -455,16 +457,157 @@ function run(): void {
       });
     });
 
-  program.parse(process.argv);
+  const admin = program.command('admin').description('Admin dashboard/API commands');
+  const adminApi = admin.command('api').description('Admin API lifecycle commands');
+
+  adminApi
+    .command('serve')
+    .description('Start the admin API server')
+    .option('--host <host>', 'Bind host', '127.0.0.1')
+    .option('--port <port>', 'Bind port', '4180')
+    .option('--db-path <path>', 'Database path', '.generated/admin/dashboard.sqlite')
+    .action(async (options: { host: string; port: string; dbPath: string }) => {
+      const requestedPort = Number.parseInt(options.port, 10);
+      const server = await startAdminApiServer({
+        host: options.host,
+        port: Number.isFinite(requestedPort) ? requestedPort : 4180,
+        dbPath: options.dbPath,
+      });
+
+      printJson({
+        status: 'listening',
+        host: server.host,
+        port: server.port,
+        db_path: server.dbPath,
+      });
+
+      let closed = false;
+      const closeServer = async (): Promise<void> => {
+        if (closed) {
+          return;
+        }
+        closed = true;
+        await server.close();
+      };
+
+      process.once('SIGINT', () => {
+        void closeServer();
+      });
+      process.once('SIGTERM', () => {
+        void closeServer();
+      });
+
+      await server.waitUntilClosed();
+    });
+
+  const stack = program.command('stack').description('Deploy and manage runtime + admin dashboard stack');
+
+  stack
+    .command('up')
+    .option('--provider <provider>', 'Override deployment provider (docker|kubernetes)')
+    .option('--dry-run', 'Plan actions only', false)
+    .option('--admin-host <host>', 'Admin API host', '127.0.0.1')
+    .option('--admin-port <port>', 'Admin API port', '4180')
+    .option('--admin-db-path <path>', 'Admin DB path', '.generated/admin/dashboard.sqlite')
+    .action((options: { provider?: string; dryRun: boolean; adminHost: string; adminPort: string; adminDbPath: string }) => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      const provider = options.provider === 'docker' || options.provider === 'kubernetes'
+        ? options.provider
+        : undefined;
+      const requestedPort = Number.parseInt(options.adminPort, 10);
+      printJson(
+        stackUp({
+          inventoryPath: invFile,
+          provider,
+          dryRun: options.dryRun,
+          adminHost: options.adminHost,
+          adminPort: Number.isFinite(requestedPort) ? requestedPort : 4180,
+          adminDbPath: options.adminDbPath,
+        }),
+      );
+    });
+
+  stack
+    .command('down')
+    .option('--provider <provider>', 'Override deployment provider (docker|kubernetes)')
+    .option('--dry-run', 'Plan actions only', false)
+    .action((options: { provider?: string; dryRun: boolean }) => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      const provider = options.provider === 'docker' || options.provider === 'kubernetes'
+        ? options.provider
+        : undefined;
+      printJson(
+        stackDown({
+          inventoryPath: invFile,
+          provider,
+          dryRun: options.dryRun,
+        }),
+      );
+    });
+
+  stack
+    .command('status')
+    .option('--provider <provider>', 'Override deployment provider (docker|kubernetes)')
+    .option('--no-runtime', 'Skip runtime health checks')
+    .option('--admin-host <host>', 'Admin API host', '127.0.0.1')
+    .option('--admin-port <port>', 'Admin API port', '4180')
+    .action((options: { provider?: string; runtime: boolean; adminHost: string; adminPort: string }) => {
+      const { inventory: invFile } = program.opts<{ inventory?: string }>();
+      const provider = options.provider === 'docker' || options.provider === 'kubernetes'
+        ? options.provider
+        : undefined;
+      const requestedPort = Number.parseInt(options.adminPort, 10);
+      printJson(
+        stackStatus({
+          inventoryPath: invFile,
+          provider,
+          includeRuntimeStatus: options.runtime,
+          adminHost: options.adminHost,
+          adminPort: Number.isFinite(requestedPort) ? requestedPort : 4180,
+        }),
+      );
+    });
+
+  const dev = program.command('dev').description('Local admin dashboard development helpers');
+
+  dev
+    .command('up')
+    .option('--admin-host <host>', 'Admin API host', '127.0.0.1')
+    .option('--admin-port <port>', 'Admin API port', '4180')
+    .option('--admin-db-path <path>', 'Admin DB path', '.generated/admin/dashboard.sqlite')
+    .action((options: { adminHost: string; adminPort: string; adminDbPath: string }) => {
+      const requestedPort = Number.parseInt(options.adminPort, 10);
+      printJson(
+        devUp({
+          adminHost: options.adminHost,
+          adminPort: Number.isFinite(requestedPort) ? requestedPort : 4180,
+          adminDbPath: options.adminDbPath,
+        }),
+      );
+    });
+
+  dev
+    .command('down')
+    .action(() => {
+      printJson(devDown());
+    });
+
+  dev
+    .command('logs')
+    .option('--lines <n>', 'Number of lines', '120')
+    .action((options: { lines: string }) => {
+      const lines = Number.parseInt(options.lines, 10);
+      printJson(devLogs({ lines: Number.isFinite(lines) ? lines : 120 }));
+    });
+
+  await program.parseAsync(process.argv);
 }
 
-try {
-  run();
-} catch (error) {
+void run().catch((error) => {
   if (error instanceof Error) {
     process.stderr.write(`error: ${error.message}\n`);
   } else {
     process.stderr.write(`error: ${String(error)}\n`);
   }
   process.exit(1);
-}
+});
