@@ -11,6 +11,9 @@ permissions:
   artifact-metadata: write
   packages: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   npm-publish:
     name: Publish npm Package
