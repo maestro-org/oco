@@ -25,9 +25,16 @@ jobs:
           node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
+        run: |
+          BUN_VERSION="$(tr -d '\n' < .bun-version)"
+          BUN_VERSION="${BUN_VERSION#bun-v}"
+          BUN_VERSION="${BUN_VERSION#v}"
+          if ! command -v unzip >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y unzip
+          fi
+          curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -71,9 +78,16 @@ jobs:
           node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
+        run: |
+          BUN_VERSION="$(tr -d '\n' < .bun-version)"
+          BUN_VERSION="${BUN_VERSION#bun-v}"
+          BUN_VERSION="${BUN_VERSION#v}"
+          if ! command -v unzip >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y unzip
+          fi
+          curl -fsSL https://bun.sh/install | bash -s "bun-v${BUN_VERSION}"
+          echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
