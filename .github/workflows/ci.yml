@@ -59,11 +59,25 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         if: ${{ env.CODECOV_TOKEN != '' }}
-        uses: codecov/codecov-action@v5
-        with:
-          token: ${{ env.CODECOV_TOKEN }}
-          files: coverage/lcov.info
-          fail_ci_if_error: false
+        run: |
+          python3 -m pip install --user codecov-cli
+          export PATH="$HOME/.local/bin:$PATH"
+
+          args=(
+            do-upload
+            --git-service github
+            --token "$CODECOV_TOKEN"
+            --slug "$GITHUB_REPOSITORY"
+            --commit-sha "$GITHUB_SHA"
+            --file coverage/lcov.info
+            --disable-search
+          )
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            args+=( --pull-request-number "${{ github.event.pull_request.number }}" )
+          fi
+
+          codecovcli "${args[@]}" || echo "Codecov upload failed; continuing because fail_ci_if_error is disabled."
 
   security-audit:
     name: Dependency Security Audit
