@@ -196,6 +196,45 @@ describe('telegram-group-allowlist-guard', () => {
     expect(result).toEqual({ cancel: true });
   });
 
+  test('fails closed for protected group sends when outbound account metadata is missing', async () => {
+    const { sending } = createHarness({
+      enabledAccounts: ['primary_bot', 'secondary_bot'],
+      blockAllGroupReplies: true,
+    });
+
+    const result = await sending(
+      {
+        to: 'telegram:-5114267406',
+        content: 'fallback error text',
+      },
+      {
+        channelId: 'telegram',
+      },
+    );
+
+    expect(result).toEqual({ cancel: true });
+  });
+
+  test('uses agentId fallback to block protected group sends when accountId is absent', async () => {
+    const { sending } = createHarness({
+      enabledAccounts: ['primary_bot', 'secondary_bot'],
+      blockAllGroupReplies: true,
+    });
+
+    const result = await sending(
+      {
+        to: 'telegram:-5114267406',
+        content: 'fallback error text',
+      },
+      {
+        channelId: 'telegram',
+        agentId: 'primary_bot',
+      },
+    );
+
+    expect(result).toEqual({ cancel: true });
+  });
+
   test('only applies to configured accounts', async () => {
     const { received, sending } = createHarness({
       enabledAccounts: ['primary_bot'],
@@ -408,6 +447,29 @@ describe('telegram-group-allowlist-guard', () => {
         accountId: 'primary_bot',
       },
     );
+
+    const result = await beforeToolCall(
+      {
+        toolName: 'web_search',
+        params: { query: 'latest updates' },
+      },
+      {
+        toolName: 'web_search',
+        sessionKey: 'agent:primary_bot:telegram:group:-5114267406',
+      },
+    );
+
+    expect(result).toEqual({
+      block: true,
+      blockReason: 'tool execution blocked: group replies are disabled for this account',
+    });
+  });
+
+  test('uses agentId fallback to block protected group tool execution when accountId is absent', async () => {
+    const { beforeToolCall } = createHarness({
+      enabledAccounts: ['primary_bot', 'secondary_bot'],
+      blockAllGroupReplies: true,
+    });
 
     const result = await beforeToolCall(
       {
