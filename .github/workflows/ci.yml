@@ -8,23 +8,24 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   test:
     name: Unit, Integration, and Coverage
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
+        run: bash ./scripts/setup-bun.sh
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
@@ -39,7 +40,7 @@ jobs:
         run: bun run test:coverage
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/
@@ -49,28 +50,40 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         if: ${{ env.CODECOV_TOKEN != '' }}
-        uses: codecov/codecov-action@v4
-        with:
-          token: ${{ env.CODECOV_TOKEN }}
-          files: coverage/lcov.info
-          fail_ci_if_error: false
+        run: |
+          python3 -m pip install --user codecov-cli
+          export PATH="$HOME/.local/bin:$PATH"
+
+          args=(
+            do-upload
+            --git-service github
+            --token "$CODECOV_TOKEN"
+            --slug "$GITHUB_REPOSITORY"
+            --commit-sha "$GITHUB_SHA"
+            --file coverage/lcov.info
+            --disable-search
+          )
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            args+=( --pull-request-number "${{ github.event.pull_request.number }}" )
+          fi
+
+          codecovcli "${args[@]}" || echo "Codecov upload failed; continuing because fail_ci_if_error is disabled."
 
   security-audit:
     name: Dependency Security Audit
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version-file: .node-version
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: .bun-version
+        run: bash ./scripts/setup-bun.sh
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
