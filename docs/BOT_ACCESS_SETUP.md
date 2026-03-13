@@ -48,10 +48,24 @@ oco pairing list --instance <instance-id> --channel telegram --account support -
 oco pairing approve --instance <instance-id> --channel telegram --account support --code <PAIRING_CODE>
 ```
 
-Optional read-only group mode (enabled accounts can read group traffic but never reply in groups):
+Read-only group mode for selected Telegram accounts that still need to ingest group traffic:
 
 ```json5
 {
+  channels: {
+    telegram: {
+      accounts: {
+        support: {
+          groupPolicy: "open",
+          groups: {
+            "*": {
+              requireMention: false,
+            },
+          },
+        },
+      },
+    },
+  },
   plugins: {
     entries: {
       "telegram-group-allowlist-guard": {
@@ -65,6 +79,16 @@ Optional read-only group mode (enabled accounts can read group traffic but never
   },
 }
 ```
+
+This keeps Telegram open for inbound group visibility, so the bot can still ingest messages and maintain group context.
+
+For a strict no-send guarantee, do not rely on the plugin alone:
+- The reply dispatcher must suppress all outbound payloads for the protected Telegram group sessions before they reach the channel adapter.
+- The `telegram-group-allowlist-guard` plugin should remain enabled as a second layer so normal group replies and tool paths still fail closed if runtime metadata is incomplete.
+
+Operational hardening outside OCO:
+- Disable new group joins for these bots with BotFather `/setjoingroups`.
+- Remove the bots from existing Telegram groups or restrict them to read-only if they must stay present.
 
 ## 2. Discord Setup
 

@@ -581,6 +581,31 @@ function resolveDefaultEnabledAccount(enabledAccounts: Set<string>): string | un
   return enabledAccounts.values().next().value as string;
 }
 
+function hasExplicitIdentityCandidate(...candidates: unknown[]): boolean {
+  return candidates.some((candidate) => Boolean(asNonEmptyString(candidate)));
+}
+
+function resolveEnabledAccount(
+  enabledAccounts: Set<string>,
+  ...candidates: unknown[]
+): string | undefined {
+  let sawExplicitCandidate = false;
+  for (const candidate of candidates) {
+    const normalized = asNonEmptyString(candidate)?.toLowerCase();
+    if (!normalized) {
+      continue;
+    }
+    sawExplicitCandidate = true;
+    if (isAccountEnabled(normalized, enabledAccounts)) {
+      return normalized;
+    }
+  }
+  if (sawExplicitCandidate) {
+    return;
+  }
+  return resolveDefaultEnabledAccount(enabledAccounts);
+}
+
 export default function register(api: OpenClawPluginApi): void {
   const pluginConfig = (api.pluginConfig ?? {}) as GuardPluginConfig;
   const enabledAccounts = new Set(
@@ -726,8 +751,14 @@ export default function register(api: OpenClawPluginApi): void {
 
     cleanupExpiredContext(maxSenderAgeMs);
     const cached = findLatestInboundForTarget(parsedSession.toTarget, maxSenderAgeMs, parsedSession.accountId);
-    const accountId =
-      parsedSession.accountId ?? cached?.accountId ?? resolveDefaultEnabledAccount(enabledAccounts);
+    const accountId = resolveEnabledAccount(
+      enabledAccounts,
+      parsedSession.accountId,
+      parsedSession.agentId,
+      ctx.accountId,
+      ctx.agentId,
+      cached?.accountId,
+    );
     if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
       return;
     }
@@ -770,8 +801,8 @@ export default function register(api: OpenClawPluginApi): void {
     }
 
     const rawContent = asNonEmptyString(event.content) ?? "";
+    const accountLabel = asNonEmptyString(ctx.accountId) ?? asNonEmptyString(ctx.agentId) ?? "unknown";
     if (isReasoningOnlyMessage(rawContent)) {
-      const accountLabel = asNonEmptyString(ctx.accountId) ?? "unknown";
       api.logger.info?.(`telegram-group-allowlist-guard: cancelled reasoning-only message for ${accountLabel}`);
       return { cancel: true };
     }
@@ -779,7 +810,7 @@ export default function register(api: OpenClawPluginApi): void {
     const sanitizedContent = stripReasoningArtifacts(rawContent);
     if (hasThinkArtifacts(rawContent) && sanitizedContent.length === 0) {
       api.logger.info?.(
-        `telegram-group-allowlist-guard: cancelled think-artifact-only message for ${accountId}`,
+        `telegram-group-allowlist-guard: cancelled think-artifact-only message for ${accountLabel}`,
       );
       return { cancel: true };
     }
@@ -796,16 +827,48 @@ export default function register(api: OpenClawPluginApi): void {
 
     const parsedTo = parseTelegramTarget(toTargetRaw);
     const metadata = asRecord(event.metadata);
-    let accountId =
-      asNonEmptyString(ctx.accountId)?.toLowerCase() ??
-      asNonEmptyString(metadata?.accountId)?.toLowerCase();
-    if (!accountId && parsedTo.kind === "group") {
+    const sessionKey =
+      asNonEmptyString(ctx.sessionKey) ??
+      asNonEmptyString(event.sessionKey) ??
+      asNonEmptyString(event.session_key) ??
+      asNonEmptyString(metadata?.sessionKey) ??
+      asNonEmptyString(metadata?.session_key);
+    const parsedSession = sessionKey ? parseTelegramSessionKey(sessionKey) : undefined;
+    const hasExplicitIdentity = hasExplicitIdentityCandidate(
+      ctx.accountId,
+      ctx.agentId,
+      parsedSession?.accountId,
+      parsedSession?.agentId,
+      metadata?.accountId,
+      metadata?.account_id,
+      metadata?.agentId,
+      metadata?.agent_id,
+    );
+    let accountId = resolveEnabledAccount(
+      enabledAccounts,
+      ctx.accountId,
+      ctx.agentId,
+      parsedSession?.accountId,
+      parsedSession?.agentId,
+      metadata?.accountId,
+      metadata?.account_id,
+      metadata?.agentId,
+      metadata?.agent_id,
+    );
+    if (!accountId && parsedTo.kind === "group" && !hasExplicitIdentity) {
       cleanupExpiredContext(maxSenderAgeMs);
-      accountId =
-        findLatestInboundForTarget(toTarget, maxSenderAgeMs)?.accountId ??
-        resolveDefaultEnabledAccount(enabledAccounts);
+      accountId = resolveEnabledAccount(
+        enabledAccounts,
+        findLatestInboundForTarget(toTarget, maxSenderAgeMs)?.accountId,
+      );
     }
     if (!accountId || !isAccountEnabled(accountId, enabledAccounts)) {
+      if (parsedTo.kind === "group" && blockAllGroupReplies && enabledAccounts.size > 0) {
+        api.logger.info?.(
+          `telegram-group-allowlist-guard: cancelled group send -> ${toTarget} (missing protected account context; failing closed)`,
+        );
+        return { cancel: true };
+      }
       return;
     }
 
