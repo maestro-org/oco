@@ -41,7 +41,7 @@ Set these in the instance runtime environment:
 ## 4. Build Gateway Image with `gws`
 
 ```bash
-docker build -f instances/<instance-id>/config/Dockerfile.custom -t openclaw-<instance-id>-custom:2026.2.22-r1 .
+docker build -f instances/<instance-id>/config/Dockerfile.custom -t openclaw-<instance-id>-custom:2026.3.13-1-r1 .
 ```
 
 ## 5. Rollout Sequence

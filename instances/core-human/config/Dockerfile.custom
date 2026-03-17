@@ -14,12 +14,8 @@ RUN git clone https://github.com/googleworkspace/cli.git /tmp/gws \
   && cargo install --locked --path . --bin gws \
   && rm -rf /tmp/gws
 
-FROM ghcr.io/openclaw/openclaw:2026.2.22
+FROM ghcr.io/openclaw/openclaw:2026.3.13-1
 
 COPY --from=gws-builder /usr/local/cargo/bin/gws /usr/local/bin/gws
-COPY instances/core-human/config/openclaw-runtime-patches/apply-protected-group-reply-suppression.mjs /tmp/apply-protected-group-reply-suppression.mjs
 
-RUN mkdir -p /tmp/corepack /tmp/.cache /tmp/pnpm \
-  && node /tmp/apply-protected-group-reply-suppression.mjs \
-  && HOME=/tmp COREPACK_HOME=/tmp/corepack XDG_CACHE_HOME=/tmp/.cache PNPM_HOME=/tmp/pnpm pnpm build \
-  && gws --version
+RUN gws --version

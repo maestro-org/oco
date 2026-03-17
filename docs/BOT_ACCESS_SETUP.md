@@ -82,9 +82,8 @@ Read-only group mode for selected Telegram accounts that still need to ingest gr
 
 This keeps Telegram open for inbound group visibility, so the bot can still ingest messages and maintain group context.
 
-For a strict no-send guarantee, do not rely on the plugin alone:
-- The reply dispatcher must suppress all outbound payloads for the protected Telegram group sessions before they reach the channel adapter.
-- The `telegram-group-allowlist-guard` plugin should remain enabled as a second layer so normal group replies and tool paths still fail closed if runtime metadata is incomplete.
+For a strict no-send guarantee on current OpenClaw builds, keep the `telegram-group-allowlist-guard` plugin enabled with `blockAllGroupReplies: true`.
+The plugin now cancels protected Telegram group sends in its `message_sending` hook, while still failing closed for tool paths and incomplete runtime metadata.
 
 Operational hardening outside OCO:
 - Disable new group joins for these bots with BotFather `/setjoingroups`.
