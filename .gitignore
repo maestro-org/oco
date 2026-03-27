@@ -15,6 +15,7 @@ inventory/*.local.yaml
 node_modules/
 dist/
 coverage/
+*.tsbuildinfo
 
 # Runtime OpenClaw instance artifacts (contain secrets/session data)
 instances/*/state/
